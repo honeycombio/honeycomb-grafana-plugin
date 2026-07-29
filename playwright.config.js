@@ -12,7 +12,9 @@ const pluginE2eAuth = `${dirname(require.resolve('@grafana/plugin-e2e'))}/auth`;
 module.exports = defineConfig({
   testDir: './tests/e2e',
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // One retry, not two: enough to absorb a genuine container-startup race,
+  // few enough that a persistently flaky test still shows up as a failure.
+  retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['html', { open: 'never' }], ['github']] : 'html',
   use: {
     baseURL: process.env.GRAFANA_URL || 'http://localhost:3000',

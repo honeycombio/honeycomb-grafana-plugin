@@ -122,9 +122,11 @@ jobs:
       - name: Collect release metadata
         id: meta
         run: |
-          echo "version=${{ steps.rel.outputs.version }}" >> "$GITHUB_OUTPUT"
-          echo "archive=$(basename build/*.zip)" >> "$GITHUB_OUTPUT"
-          echo "sha1=$(cat build/*.sha1)" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=${{ steps.rel.outputs.version }}"
+            echo "archive=$(basename build/*.zip)"
+            echo "sha1=$(cat build/*.sha1)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -41,6 +41,8 @@ echo "Testing ${ZIP_PATH} (plugin id: ${PLUGIN_ID}) against ${GRAFANA_IMAGE}"
 cleanup() {
   docker rm -f "${CONTAINER_NAME}" > /dev/null 2>&1 || true
   rm -rf "${PLUGINS_DIR}"
+  # Set later in the script, so tolerate it being unset under `set -u`.
+  rm -f "${HEALTH_BODY:-}"
 }
 trap cleanup EXIT
 
@@ -110,9 +112,10 @@ DS_RESPONSE="$(curl -sf -u "${ADMIN_AUTH}" -X POST "${GRAFANA_URL}/api/datasourc
   }")"
 DS_UID="$(echo "${DS_RESPONSE}" | jq -r .datasource.uid)"
 
-HEALTH_CODE="$(curl -s -o /tmp/health-body.json -w '%{http_code}' -u "${ADMIN_AUTH}" \
+HEALTH_BODY="$(mktemp)"
+HEALTH_CODE="$(curl -s -o "${HEALTH_BODY}" -w '%{http_code}' -u "${ADMIN_AUTH}" \
   "${GRAFANA_URL}/api/datasources/uid/${DS_UID}/health")"
-echo "Backend health check: HTTP ${HEALTH_CODE} — $(cat /tmp/health-body.json)"
+echo "Backend health check: HTTP ${HEALTH_CODE} — $(cat "${HEALTH_BODY}")"
 
 if [[ "${HEALTH_CODE}" -ge 500 ]]; then
   echo "FAIL: backend binary did not start (HTTP ${HEALTH_CODE})." >&2
