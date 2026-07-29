@@ -32,6 +32,9 @@ fi
 
 PLUGINS_DIR="$(mktemp -d)"
 unzip -q "${ZIP_PATH}" -d "${PLUGINS_DIR}"
+# mktemp creates a 700 dir; the bind mount preserves host permissions on
+# Linux, so make everything readable by the container's grafana user (472).
+chmod -R a+rX "${PLUGINS_DIR}"
 PLUGIN_ID="$(ls "${PLUGINS_DIR}")"
 echo "Testing ${ZIP_PATH} (plugin id: ${PLUGIN_ID}) against ${GRAFANA_IMAGE}"
 
