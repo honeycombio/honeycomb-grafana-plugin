@@ -1,8 +1,13 @@
 name: Release
 
-# Tag-driven releases. Tags are normally pushed by the Version Bump & Tag
-# workflow after CI succeeds on main (see version-bump.yml); manual tags work
-# too as long as they match package.json.
+# Releases reach this workflow three ways, all converging on the same job:
+#
+#   workflow_call     — how automated releases fire. The Version Bump & Tag
+#                       workflow calls us directly after pushing the tag. It
+#                       must call rather than rely on the tag event: a tag
+#                       pushed with GITHUB_TOKEN does not trigger `on: push`.
+#   push (tags)       — a tag pushed by a human, which does trigger normally.
+#   workflow_dispatch — re-cut a release by hand for an existing tag.
 #
 # This workflow rebuilds everything from source, packages the plugin with the
 # same script CI exercises on every PR, smoke tests the artifact in a real
@@ -12,6 +17,18 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag to release, e.g. v0.1.3. Must already exist on origin.'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, e.g. v0.1.3. Must already exist on origin.'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -21,7 +38,27 @@ jobs:
     name: Build, verify, and release plugin
     runs-on: ubuntu-latest
     steps:
+      # On a tag push inputs.tag is empty and github.ref_name IS the tag. On the
+      # workflow_call path github.ref_name is 'main' and the caller's SHA
+      # predates the version-bump commit, so the tag must be checked out
+      # explicitly or we would build the wrong source.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      # Converge every entry point on one value so later steps read one source.
+      - name: Resolve release tag
+        id: rel
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-$GITHUB_REF_NAME}"
+          if [[ "${TAG}" != v* ]]; then
+            echo "ERROR: expected a tag of the form vX.Y.Z, got '${TAG}'." >&2
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       # -----------------------------------------------------------------------
       # Guard: the tag must match the version committed in package.json, so a
@@ -29,7 +66,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Verify tag matches package.json version
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          TAG_VERSION="${{ steps.rel.outputs.version }}"
           PKG_VERSION="$(jq -r .version package.json)"
           if [[ "${TAG_VERSION}" != "${PKG_VERSION}" ]]; then
             echo "ERROR: tag v${TAG_VERSION} does not match package.json version ${PKG_VERSION}."
@@ -74,7 +111,7 @@ jobs:
         run: mage build:all
 
       - name: Package plugin
-        run: ./scripts/package.sh "${GITHUB_REF_NAME#v}"
+        run: ./scripts/package.sh "${{ steps.rel.outputs.version }}"
 
       - name: Smoke test packaged plugin in Grafana
         run: ./scripts/smoke-test.sh
@@ -85,13 +122,17 @@ jobs:
       - name: Collect release metadata
         id: meta
         run: |
-          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "version=${{ steps.rel.outputs.version }}" >> "$GITHUB_OUTPUT"
           echo "archive=$(basename build/*.zip)" >> "$GITHUB_OUTPUT"
           echo "sha1=$(cat build/*.sha1)" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          # Required: on the workflow_call and workflow_dispatch paths github.ref
+          # is a branch, so without this the release would be cut against that
+          # branch instead of the tag.
+          tag_name: ${{ steps.rel.outputs.tag }}
           files: |
             build/*.zip
             build/*.sha1

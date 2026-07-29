@@ -20,7 +20,8 @@ Releases happen automatically:
    `minor`/`major`. Do this **before** merging further PRs, or the auto-patch
    will fire first.
 
-3. **The tag triggers the [Release workflow](.github/workflows/release.yml):**
+3. **The bump workflow then calls the
+   [Release workflow](.github/workflows/release.yml)**, which:
    - verifies the tag matches `package.json`
    - runs the full Go and frontend test suites
    - builds the frontend and backend binaries for all platforms
@@ -33,8 +34,15 @@ Releases happen automatically:
    - publishes a GitHub Release with the zip, a SHA1 checksum, and
      auto-generated release notes
 
-If any step fails, no release is published. Fix the problem, delete the tag
-(`git push --delete origin v0.2.0`), and re-tag (or re-run the bump workflow).
+   It is invoked via `workflow_call` rather than by the tag push, because a tag
+   pushed with `GITHUB_TOKEN` does not trigger `on: push` workflows — relying on
+   the tag event is why no release was published for v0.1.1 or v0.1.2. A tag
+   pushed by a *human* does trigger it, so manual tags work too.
+
+If any step fails, no release is published. Fix the problem, then either re-run
+the Release workflow against the existing tag (Actions → *Release* → *Run
+workflow* → enter the tag), or delete the tag
+(`git push --delete origin v0.2.0`) and re-run the bump workflow.
 
 Update `CHANGELOG.md` in every user-visible PR — since each merge to `main`
 auto-releases, the changelog entry ships with the release it describes.
