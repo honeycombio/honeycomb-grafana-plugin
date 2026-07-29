@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Go test coverage floor (60%) enforced in CI.
 - `mage build:linuxARM64` target for local smoke testing on Apple Silicon.
 - `RELEASING.md` documenting the release process and quality gates.
+- `scripts/promote-changelog.js`, run during the version bump, renames the `[Unreleased]` heading to the released version and updates the link references — so release notes point at a real changelog section instead of a permanent "Unreleased".
 
 ### Fixed
 - **No release was ever published.** The version-bump workflow created a lightweight tag and pushed with `git push --follow-tags`, which only pushes annotated tags, so the `v0.1.1` and `v0.1.2` tags never reached origin and the release workflow never ran. Tags are now annotated and pushed explicitly, and the release workflow is invoked directly (a tag pushed with `GITHUB_TOKEN` cannot trigger `on: push`).

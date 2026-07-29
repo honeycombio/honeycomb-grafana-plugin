@@ -10,8 +10,9 @@ Releases happen automatically:
 
 1. **Merge a PR to `main`.** When CI succeeds on `main`, the
    [Version Bump & Tag workflow](.github/workflows/version-bump.yml) bumps the
-   **patch** version in `package.json` and `pkg/honeycomb/client.go`, commits
-   `chore: release vX.Y.Z [skip ci]`, and pushes the `vX.Y.Z` tag.
+   **patch** version in `package.json` and `pkg/honeycomb/client.go`, renames the
+   CHANGELOG's `## [Unreleased]` heading to `## [X.Y.Z] — <date>`, commits
+   `chore: release vX.Y.Z [skip ci]`, and pushes the annotated `vX.Y.Z` tag.
    (`src/plugin.json` uses `%VERSION%`/`%TODAY%` placeholders stamped by
    webpack at build time, so it needs no edit.)
 
@@ -44,8 +45,11 @@ the Release workflow against the existing tag (Actions → *Release* → *Run
 workflow* → enter the tag), or delete the tag
 (`git push --delete origin v0.2.0`) and re-run the bump workflow.
 
-Update `CHANGELOG.md` in every user-visible PR — since each merge to `main`
-auto-releases, the changelog entry ships with the release it describes.
+Add your entries under `## [Unreleased]` in every user-visible PR — since each
+merge to `main` auto-releases, the changelog entry ships with the release it
+describes, and [`scripts/promote-changelog.js`](scripts/promote-changelog.js)
+renames that heading to the released version during the bump. If `[Unreleased]`
+is empty, the release still happens; it just gets no changelog section.
 
 ## What users get
 

@@ -88,6 +88,10 @@ jobs:
           # pkg/honeycomb/client.go (pluginVersion constant)
           sed -i "s|pluginVersion = \"[0-9]*\.[0-9]*\.[0-9]*\"|pluginVersion = \"${NEXT}\"|g" pkg/honeycomb/client.go
 
+          # CHANGELOG.md — rename [Unreleased] to this version so the release
+          # notes point at a real section. No-ops if there is nothing to promote.
+          node scripts/promote-changelog.js "${NEXT}"
+
       - name: Commit and tag
         id: tag
         if: steps.check.outputs.skip == 'false'
@@ -95,7 +99,7 @@ jobs:
           NEXT="${{ steps.version.outputs.next }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json pkg/honeycomb/client.go
+          git add package.json pkg/honeycomb/client.go CHANGELOG.md
           git commit -m "chore: release v${NEXT} [skip ci]"
           # Annotated, and pushed explicitly: --follow-tags silently skips
           # lightweight tags, which is why v0.1.1 and v0.1.2 never reached
