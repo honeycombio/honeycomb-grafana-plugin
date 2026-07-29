@@ -32,11 +32,11 @@
     "links": [
       {
         "name": "Documentation",
-        "url": "https://github.com/honeycombio/grafana-honeycomb-datasource/blob/main/README.md"
+        "url": "https://github.com/honeycombio/honeycomb-grafana-plugin/blob/main/README.md"
       },
       {
         "name": "Report an issue",
-        "url": "https://github.com/honeycombio/grafana-honeycomb-datasource/issues"
+        "url": "https://github.com/honeycombio/honeycomb-grafana-plugin/issues"
       }
     ],
     "screenshots": [],

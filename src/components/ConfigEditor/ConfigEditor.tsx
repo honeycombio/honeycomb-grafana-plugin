@@ -190,7 +190,7 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
         Dashboards with many panels sharing the same query will automatically coalesce requests. See
         the{' '}
         <a
-          href="https://github.com/honeycombio/grafana-honeycomb-datasource/blob/main/docs/caching.md"
+          href="https://github.com/honeycombio/honeycomb-grafana-plugin/blob/main/docs/caching.md"
           target="_blank"
           rel="noopener noreferrer"
         >

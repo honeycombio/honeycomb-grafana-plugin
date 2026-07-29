@@ -1,4 +1,4 @@
-# Contributing to grafana-honeycomb-datasource
+# Contributing to honeycomb-grafana-plugin
 
 Thank you for contributing! This guide covers everything you need to set up a local development environment, run tests, and submit a pull request.
 
@@ -17,8 +17,8 @@ Thank you for contributing! This guide covers everything you need to set up a lo
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/honeycombio/grafana-honeycomb-datasource
-cd grafana-honeycomb-datasource
+git clone https://github.com/honeycombio/honeycomb-grafana-plugin
+cd honeycomb-grafana-plugin
 npm install
 go mod download
 ```

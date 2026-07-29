@@ -2,7 +2,7 @@
 
 A production-grade Grafana backend data source plugin for [Honeycomb](https://www.honeycomb.io) that lets you query Honeycomb datasets directly from Grafana dashboards.
 
-[![CI](https://github.com/honeycombio/grafana-honeycomb-datasource/actions/workflows/ci.yml/badge.svg)](https://github.com/honeycombio/grafana-honeycomb-datasource/actions/workflows/ci.yml)
+[![CI](https://github.com/honeycombio/honeycomb-grafana-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/honeycombio/honeycomb-grafana-plugin/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 ---
@@ -41,7 +41,7 @@ A production-grade Grafana backend data source plugin for [Honeycomb](https://ww
 
 ### From GitHub Releases (recommended)
 
-1. Download the latest release zip from [Releases](https://github.com/honeycombio/grafana-honeycomb-datasource/releases)
+1. Download the latest release zip from [Releases](https://github.com/honeycombio/honeycomb-grafana-plugin/releases)
    (optionally verify it against the published `.sha1` checksum).
 2. Extract to your Grafana plugins directory:
    ```bash
