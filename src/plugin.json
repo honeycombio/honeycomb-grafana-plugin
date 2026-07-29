@@ -40,18 +40,9 @@
       }
     ],
     "screenshots": [],
-    "version": "0.1.2",
-    "updated": "2026-06-17"
+    "version": "%VERSION%",
+    "updated": "%TODAY%"
   },
-  "includes": [
-    {
-      "type": "dashboard",
-      "name": "Honeycomb Example Dashboard",
-      "path": "dashboards/example.json",
-      "icon": "dashboard",
-      "description": "Example dashboard demonstrating timeseries, table, and stat panel types."
-    }
-  ],
   "dependencies": {
     "grafanaVersion": "11.0.0",
     "plugins": []

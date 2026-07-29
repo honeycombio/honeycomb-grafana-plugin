@@ -1,5 +1,14 @@
 name: Release
 
+# Tag-driven releases: bump the version in package.json (PR), then push a
+# matching tag. Example for v0.2.0:
+#
+#   git tag v0.2.0 && git push origin v0.2.0
+#
+# The workflow rebuilds everything from source, packages the plugin with the
+# same script CI exercises on every PR, smoke tests the artifact in a real
+# Grafana container, and only then publishes a GitHub Release.
+
 on:
   push:
     tags:
@@ -10,14 +19,30 @@ permissions:
 
 jobs:
   release:
-    name: Build and release plugin
+    name: Build, verify, and release plugin
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # -----------------------------------------------------------------------
+      # Guard: the tag must match the version committed in package.json, so a
+      # release is always reproducible from its tagged source.
+      # -----------------------------------------------------------------------
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(jq -r .version package.json)"
+          if [[ "${TAG_VERSION}" != "${PKG_VERSION}" ]]; then
+            echo "ERROR: tag v${TAG_VERSION} does not match package.json version ${PKG_VERSION}."
+            echo "Bump package.json (and CHANGELOG.md) in a PR before tagging."
+            exit 1
+          fi
+          echo "Releasing version ${TAG_VERSION}"
+
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
+          cache: true
 
       - uses: actions/setup-node@v4
         with:
@@ -25,11 +50,24 @@ jobs:
           cache: npm
 
       - name: Install Mage
-        run: go install github.com/magefile/mage@latest
+        run: go install github.com/magefile/mage@v1.17.2
 
       - name: Install frontend dependencies
         run: npm ci
 
+      # -----------------------------------------------------------------------
+      # Full test pass — a release must never ship untested code, even if CI
+      # already ran on the merge commit.
+      # -----------------------------------------------------------------------
+      - name: Run Go tests
+        run: go test -race ./pkg/...
+
+      - name: Run frontend tests
+        run: npm test -- --ci
+
+      # -----------------------------------------------------------------------
+      # Build and package
+      # -----------------------------------------------------------------------
       - name: Build frontend
         run: npm run build
 
@@ -37,36 +75,50 @@ jobs:
         run: mage build:all
 
       - name: Package plugin
-        id: package
+        run: ./scripts/package.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Smoke test packaged plugin in Grafana
+        run: ./scripts/smoke-test.sh
+
+      # -----------------------------------------------------------------------
+      # Publish
+      # -----------------------------------------------------------------------
+      - name: Collect release metadata
+        id: meta
         run: |
-          PLUGIN_ID=$(jq -r .id src/plugin.json)
-          PLUGIN_VERSION=${GITHUB_REF#refs/tags/v}
-          ARCHIVE="${PLUGIN_ID}-${PLUGIN_VERSION}.zip"
-
-          # Copy plugin.json into dist (webpack already builds frontend there).
-          cp src/plugin.json dist/plugin.json
-
-          # Copy required plugin files into dist.
-          cp -r img dist/ 2>/dev/null || true
-
-          # Zip everything up.
-          zip -r "${ARCHIVE}" dist/ LICENSE README.md provisioning/
-
-          echo "archive=${ARCHIVE}" >> "$GITHUB_OUTPUT"
-          echo "plugin_version=${PLUGIN_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "archive=$(basename build/*.zip)" >> "$GITHUB_OUTPUT"
+          echo "sha1=$(cat build/*.sha1)" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.package.outputs.archive }}
+          files: |
+            build/*.zip
+            build/*.sha1
           generate_release_notes: true
           body: |
-            ## Honeycomb Grafana Data Source Plugin ${{ steps.package.outputs.plugin_version }}
+            ## Honeycomb Grafana Data Source ${{ steps.meta.outputs.version }}
 
-            See [CHANGELOG.md](CHANGELOG.md) for details.
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
 
-            ### Installation
+            **SHA1:** `${{ steps.meta.outputs.sha1 }}`
+
+            ### Install on self-hosted Grafana
+
             ```bash
-            grafana-cli plugins install honeycombio-honeycomb-datasource ${{ steps.package.outputs.plugin_version }}
+            # Download and unzip into your Grafana plugins directory
+            wget https://github.com/${{ github.repository }}/releases/download/v${{ steps.meta.outputs.version }}/${{ steps.meta.outputs.archive }}
+            unzip ${{ steps.meta.outputs.archive }} -d /var/lib/grafana/plugins/
             ```
-            Or copy the zip to your Grafana plugins directory.
+
+            This release is unsigned, so allow it in `grafana.ini` (or the
+            equivalent `GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS` environment
+            variable), then restart Grafana:
+
+            ```ini
+            [plugins]
+            allow_loading_unsigned_plugins = honeycombio-honeycomb-datasource
+            ```
+
+            Verify the download with `shasum -a 1 ${{ steps.meta.outputs.archive }}`.

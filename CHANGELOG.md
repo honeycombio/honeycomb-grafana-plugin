@@ -7,6 +7,21 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- Tag-driven release pipeline that packages a Grafana-installable zip (all platform binaries, SHA1 checksum) and publishes it to GitHub Releases (`.github/workflows/release.yml`, `scripts/package.sh`).
+- Container smoke test that installs the packaged zip into a real Grafana and verifies the plugin loads and the backend binary answers a health check (`scripts/smoke-test.sh`), run on every PR and before every release.
+- Playwright e2e test suite using `@grafana/plugin-e2e`, run in CI against Grafana 11.0.0 and latest (`tests/e2e/`).
+- Frontend unit tests for query filtering, template variable substitution, and variable queries (`src/datasource.test.ts`).
+- Go test coverage floor (60%) enforced in CI.
+- `mage build:linuxARM64` target for local smoke testing on Apple Silicon.
+- `RELEASING.md` documenting the release process and quality gates.
+
+### Fixed
+- `src/plugin.json` referenced a bundled dashboard that does not exist, which broke plugin validation; the version field is now stamped from `package.json` at build time via `%VERSION%`.
+- The release workflow previously produced a zip without the compiled backend binaries or the required `<plugin-id>/` root directory, so it could not be installed into Grafana.
+- README no longer suggests `grafana-cli plugins install`, which cannot work until the plugin is in the Grafana catalog.
+- `docker-compose.yml` now mounts only `dist/` into Grafana (not the whole repo) and supports `GRAFANA_PORT`/`GRAFANA_VERSION` overrides.
+
 ## [0.1.0] — 2025-01-15
 
 ### Added

@@ -56,8 +56,8 @@ Open http://localhost:3000 (admin/admin). Add the Honeycomb datasource via Setti
 ### 4. Run tests
 
 ```bash
-# Go tests:
-go test -v -race ./...
+# Go tests (scoped to pkg/ — ./... would traverse node_modules):
+go test -v -race ./pkg/...
 
 # TypeScript tests:
 npm test
@@ -67,7 +67,45 @@ golangci-lint run
 
 # Lint (TypeScript):
 npm run lint
+
+# Type check:
+npm run typecheck
 ```
+
+### 5. End-to-end tests (Playwright)
+
+E2E tests drive a real Grafana instance in a real browser using
+[`@grafana/plugin-e2e`](https://grafana.com/developers/plugin-tools/e2e-test-a-plugin/get-started).
+
+```bash
+# One-time: install the browser
+npx playwright install chromium
+
+# Build the plugin and start Grafana (use build:linuxARM64 on Apple Silicon)
+npm run build && mage build:linux
+docker compose up -d
+
+# Run the tests (GRAFANA_URL defaults to http://localhost:3000;
+# use GRAFANA_PORT=3001 docker compose up -d if 3000 is taken)
+npm run e2e
+npm run e2e:report   # view the HTML report
+```
+
+CI runs the e2e suite against both the minimum supported Grafana version and
+`latest`.
+
+### 6. Package and smoke test a release artifact
+
+To verify your change survives the full release path locally:
+
+```bash
+npm run build && mage build:all   # build:all so the zip covers your host arch
+./scripts/package.sh              # produces build/<plugin-id>-<version>.zip
+./scripts/smoke-test.sh           # installs the zip into a real Grafana container
+```
+
+CI runs both on every PR, so a green PR means a releasable commit. See
+[RELEASING.md](RELEASING.md) for the release process itself.
 
 ## Code organization
 

@@ -41,23 +41,24 @@ A production-grade Grafana backend data source plugin for [Honeycomb](https://ww
 
 ### From GitHub Releases (recommended)
 
-1. Download the latest release zip from [Releases](https://github.com/honeycombio/grafana-honeycomb-datasource/releases).
+1. Download the latest release zip from [Releases](https://github.com/honeycombio/grafana-honeycomb-datasource/releases)
+   (optionally verify it against the published `.sha1` checksum).
 2. Extract to your Grafana plugins directory:
    ```bash
-   unzip honeycombio-honeycomb-datasource-0.1.0.zip -d /var/lib/grafana/plugins/
+   unzip honeycombio-honeycomb-datasource-<version>.zip -d /var/lib/grafana/plugins/
    ```
-3. Restart Grafana.
-4. If the plugin is not signed, add to `grafana.ini`:
+3. Releases are currently unsigned, so allow the plugin in `grafana.ini`
+   (or via the `GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS` environment variable):
    ```ini
    [plugins]
    allow_loading_unsigned_plugins = honeycombio-honeycomb-datasource
    ```
+4. Restart Grafana.
 
-### Via Grafana CLI
-
-```bash
-grafana-cli plugins install honeycombio-honeycomb-datasource
-```
+The zip bundles backend binaries for linux (amd64/arm/arm64), macOS
+(amd64/arm64), and Windows (amd64); Grafana picks the right one automatically.
+The plugin is not yet in the Grafana plugin catalog, so `grafana-cli plugins
+install` does not work yet — see [RELEASING.md](RELEASING.md).
 
 ### Via provisioning
 

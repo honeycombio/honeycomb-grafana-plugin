@@ -17,6 +17,10 @@ func (Build) Linux() error {
 	return b.Linux()
 }
 
+func (Build) LinuxARM64() error {
+	return b.LinuxARM64()
+}
+
 func (Build) Darwin() error {
 	return b.Darwin()
 }
