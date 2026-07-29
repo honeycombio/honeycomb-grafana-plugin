@@ -95,6 +95,15 @@ correctness observable rather than assumed:
 | Tag ↔ `package.json` guard | release | releases are reproducible from tagged source |
 
 Recommended repo settings (configure on GitHub):
-- Branch protection on `main`: require the `Backend`, `Frontend`,
+
+- **Branch protection on `main`**: require the `Backend`, `Frontend`,
   `Package & smoke test`, and `E2E` checks to pass; require PR review.
-- Enable Dependabot security updates and GitHub secret scanning.
+
+  ⚠️ The Version Bump & Tag workflow pushes the release commit **directly to
+  `main`** with `GITHUB_TOKEN`. Protection will reject that push and silently
+  stop all releases. Before enabling it, either add `github-actions[bot]` to the
+  bypass list ("Allow specified actors to bypass required pull requests"), or
+  convert the bump to open a PR instead of pushing.
+
+- Enable Dependabot security updates. (Secret scanning and push protection are
+  already on — default for public repos under the enterprise account.)
