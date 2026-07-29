@@ -131,10 +131,15 @@ jobs:
         # Informational for now: the validator also enforces catalog-submission
         # rules (signing, screenshots) that do not apply to GitHub-only
         # releases. Promote to blocking once tuned via a validator config.
+        #
+        # Pinned rather than @latest: this compiles and runs third-party code in
+        # a job with the repo checked out, so the version should change only
+        # when we choose to bump it. continue-on-error (not `|| true`) keeps the
+        # step non-blocking while still surfacing the real exit code in the log.
         continue-on-error: true
         run: |
-          go run github.com/grafana/plugin-validator/pkg/cmd/plugincheck2@latest \
-            build/*.zip || true
+          go run github.com/grafana/plugin-validator/pkg/cmd/plugincheck2@v0.41.0 \
+            build/*.zip
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
