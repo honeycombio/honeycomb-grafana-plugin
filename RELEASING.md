@@ -4,23 +4,23 @@ Releases are tag-driven and fully automated through GitHub Actions. Every
 release artifact is a zip that a self-hosted Grafana user can unzip into their
 plugins directory and run.
 
-## How to cut a release
+## How releases are cut
 
-1. **Bump the version in a PR.** Update `version` in `package.json` and add a
-   dated section to `CHANGELOG.md`. (`src/plugin.json` uses the `%VERSION%`
-   placeholder and is stamped automatically at build time.) Merge the PR once
-   CI is green.
+Releases happen automatically:
 
-2. **Tag the merge commit.** The tag must be `v` + the exact `package.json`
-   version — the release workflow fails otherwise.
+1. **Merge a PR to `main`.** When CI succeeds on `main`, the
+   [Version Bump & Tag workflow](.github/workflows/version-bump.yml) bumps the
+   **patch** version in `package.json` and `pkg/honeycomb/client.go`, commits
+   `chore: release vX.Y.Z [skip ci]`, and pushes the `vX.Y.Z` tag.
+   (`src/plugin.json` uses `%VERSION%`/`%TODAY%` placeholders stamped by
+   webpack at build time, so it needs no edit.)
 
-   ```bash
-   git checkout main && git pull
-   git tag v0.2.0
-   git push origin v0.2.0
-   ```
+2. **For a minor or major bump**, trigger the same workflow manually:
+   GitHub → Actions → *Version Bump & Tag* → *Run workflow* → choose
+   `minor`/`major`. Do this **before** merging further PRs, or the auto-patch
+   will fire first.
 
-3. **The [Release workflow](.github/workflows/release.yml) does the rest:**
+3. **The tag triggers the [Release workflow](.github/workflows/release.yml):**
    - verifies the tag matches `package.json`
    - runs the full Go and frontend test suites
    - builds the frontend and backend binaries for all platforms
@@ -34,7 +34,10 @@ plugins directory and run.
      auto-generated release notes
 
 If any step fails, no release is published. Fix the problem, delete the tag
-(`git push --delete origin v0.2.0`), and re-tag.
+(`git push --delete origin v0.2.0`), and re-tag (or re-run the bump workflow).
+
+Update `CHANGELOG.md` in every user-visible PR — since each merge to `main`
+auto-releases, the changelog entry ships with the release it describes.
 
 ## What users get
 

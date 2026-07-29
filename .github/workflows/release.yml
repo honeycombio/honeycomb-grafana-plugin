@@ -1,11 +1,10 @@
 name: Release
 
-# Tag-driven releases: bump the version in package.json (PR), then push a
-# matching tag. Example for v0.2.0:
+# Tag-driven releases. Tags are normally pushed by the Version Bump & Tag
+# workflow after CI succeeds on main (see version-bump.yml); manual tags work
+# too as long as they match package.json.
 #
-#   git tag v0.2.0 && git push origin v0.2.0
-#
-# The workflow rebuilds everything from source, packages the plugin with the
+# This workflow rebuilds everything from source, packages the plugin with the
 # same script CI exercises on every PR, smoke tests the artifact in a real
 # Grafana container, and only then publishes a GitHub Release.
 

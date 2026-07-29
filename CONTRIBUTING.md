@@ -91,6 +91,10 @@ npm run e2e
 npm run e2e:report   # view the HTML report
 ```
 
+> **Tip:** if e2e tests behave oddly, reset Grafana's state with
+> `docker compose down -v` — the persistent volume accumulates datasources
+> from previous runs, which can confuse the datasource picker.
+
 CI runs the e2e suite against both the minimum supported Grafana version and
 `latest`.
 

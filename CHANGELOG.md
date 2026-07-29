@@ -8,7 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
-- Tag-driven release pipeline that packages a Grafana-installable zip (all platform binaries, SHA1 checksum) and publishes it to GitHub Releases (`.github/workflows/release.yml`, `scripts/package.sh`).
+- Release pipeline (triggered by the tags the version-bump workflow pushes) that packages a Grafana-installable zip (all platform binaries, SHA1 checksum) and publishes it to GitHub Releases (`.github/workflows/release.yml`, `scripts/package.sh`).
 - Container smoke test that installs the packaged zip into a real Grafana and verifies the plugin loads and the backend binary answers a health check (`scripts/smoke-test.sh`), run on every PR and before every release.
 - Playwright e2e test suite using `@grafana/plugin-e2e`, run in CI against Grafana 11.0.0 and latest (`tests/e2e/`).
 - Frontend unit tests for query filtering, template variable substitution, and variable queries (`src/datasource.test.ts`).
