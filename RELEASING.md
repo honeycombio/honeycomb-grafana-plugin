@@ -101,7 +101,7 @@ correctness observable rather than assumed:
 
 | Gate | Where | What it proves |
 |------|-------|----------------|
-| Go tests with `-race` + 60% coverage floor | CI + release | backend logic behaves; no data races |
+| Go tests with `-race` + 65% coverage floor | CI + release | backend logic behaves; no data races |
 | Frontend unit tests (Jest) | CI + release | query filtering/variable logic behaves |
 | Typecheck + ESLint + golangci-lint | CI | no unsound types or common bug patterns |
 | Packaging dry-run, all 6 platform binaries | CI (every PR) | a release from this commit would build and package |

@@ -12,7 +12,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Container smoke test that installs the packaged zip into a real Grafana and verifies the plugin loads and the backend binary answers a health check (`scripts/smoke-test.sh`), run on every PR and before every release.
 - Playwright e2e test suite using `@grafana/plugin-e2e`, run in CI against Grafana 11.0.0 and latest (`tests/e2e/`).
 - Frontend unit tests for query filtering, template variable substitution, and variable queries (`src/datasource.test.ts`).
-- Go test coverage floor (60%) enforced in CI.
+- Go test coverage floor enforced in CI, set to 65% against 68.9% actual so it acts as a regression alarm rather than a number pinned to current coverage.
+- Backend tests for the resource handler (`CallResource`, dataset and column listing, the `__all__` short-circuit, per-dataset cache scoping, upstream error mapping), the logs query helpers, the retry/backoff schedule including the `Retry-After` and jitter paths, `FlexibleTime` and `ResultEntry` JSON decoding, and the SLO endpoints. `pkg/honeycomb` coverage rose from 53.3% to 83.9%, `pkg/plugin` from 45.4% to 58.6%.
 - `mage build:linuxARM64` target for local smoke testing on Apple Silicon.
 - `RELEASING.md` documenting the release process and quality gates.
 - `scripts/promote-changelog.js`, run during the version bump, renames the `[Unreleased]` heading to the released version and updates the link references — so release notes point at a real changelog section instead of a permanent "Unreleased".
