@@ -33,7 +33,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The release workflow previously produced a zip without the compiled backend binaries or the required `<plugin-id>/` root directory, so it could not be installed into Grafana.
 - README no longer suggests `grafana-cli plugins install`, which cannot work until the plugin is in the Grafana catalog.
 - `docker-compose.yml` now mounts only `dist/` into Grafana (not the whole repo) and supports `GRAFANA_PORT`/`GRAFANA_VERSION` overrides.
-- The Go module path was still `github.com/honeycombio/grafana-honeycomb-datasource`, a repo that does not exist. Renamed to `github.com/honeycombio/honeycomb-grafana-plugin` along with all 39 internal import paths.
+- The Go module path was still `github.com/honeycombio/grafana-honeycomb-datasource`, a repo that does not exist. Renamed to `github.com/honeycombio/honeycomb-grafana-plugin` along with all 39 internal import paths. The `User-Agent` header sent to the Honeycomb API changed from `grafana-honeycomb-datasource/<version>` to `honeycomb-grafana-plugin/<version>` at the same time — anything filtering on the old value needs updating.
 - Every GitHub link pointed at `honeycombio/grafana-honeycomb-datasource`, which does not exist — including the README's release-download link and the two `plugin.json` links Grafana renders on the plugin page. All now point at `honeycombio/honeycomb-grafana-plugin`.
 
 ## [0.1.0] — 2025-01-15
