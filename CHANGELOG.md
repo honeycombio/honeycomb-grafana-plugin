@@ -18,6 +18,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `scripts/promote-changelog.js`, run during the version bump, renames the `[Unreleased]` heading to the released version and updates the link references — so release notes point at a real changelog section instead of a permanent "Unreleased".
 - `scripts/release-relevant.sh`, which gates the auto-bump so that merges unable to change the artifact (CI config, `scripts/`, `tests/`, docs) no longer mint a patch release. Runnable locally against any commit range.
 - `CI required` aggregate status check — one stable context to require in branch protection, instead of a hand-maintained list of job names that drifts and cannot cover matrix jobs.
+- `npm run typecheck` now also typechecks `tests/` against `tests/tsconfig.json`. The e2e specs were previously never typechecked — the root config only includes `src/`, and `playwright test` transpiles via esbuild without checking types — so a broken fixture signature surfaced as a Grafana-boot-time failure instead of a type error.
+- Frontend tests for the `slo`, `logs`, and `traces` branches of `filterQuery` (previously only the raw/builder tail was covered), for `havings` template substitution, and for `scopedVars` being forwarded to the template service.
 - Reproducible packaging: the same commit now always produces a byte-identical zip and SHA1. `info.updated`, archive file mtimes, and the build timestamp the Grafana SDK embeds in each binary are all derived from the commit date instead of the wall clock, and `zip` is fed a sorted file list. `SOURCE_DATE_EPOCH` is honoured for builds outside a git checkout.
 
 ### Fixed
