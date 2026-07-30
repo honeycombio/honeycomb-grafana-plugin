@@ -36,7 +36,7 @@ Releases happen automatically:
    release" guard. Do this **before** merging further PRs, or the auto-patch
    will fire first.
 
-3. **The bump workflow then calls the
+3. **Pushing that tag starts the
    [Release workflow](.github/workflows/release.yml)**, which:
    - verifies the tag matches `package.json`
    - runs the full Go and frontend test suites
@@ -50,10 +50,10 @@ Releases happen automatically:
    - publishes a GitHub Release with the zip, a SHA1 checksum, and
      auto-generated release notes
 
-   It is invoked via `workflow_call` rather than by the tag push, because a tag
-   pushed with `GITHUB_TOKEN` does not trigger `on: push` workflows — relying on
-   the tag event is why no release was published for v0.1.1 or v0.1.2. A tag
-   pushed by a *human* does trigger it, so manual tags work too.
+   A tag pushed by a human triggers exactly the same run, so manual tags work
+   identically. This depends on the bump pushing with a PAT rather than
+   `GITHUB_TOKEN` — see [`RELEASE_TOKEN`](#-required-the-release_token-secret)
+   below.
 
 If any step fails, no release is published. Fix the problem, then either re-run
 the Release workflow against the existing tag (Actions → *Release* → *Run
@@ -123,15 +123,32 @@ hand-maintained list silently stops guarding a new Grafana version and blocks
 every PR forever when an old one is removed. Adding a job to that workflow's
 `needs:` list covers it automatically.
 
-### ⚠️ The release bot must be able to push to `main`
+### ⚠️ Required: the `RELEASE_TOKEN` secret
 
-The Version Bump & Tag workflow pushes the release commit **directly to `main`**
-with `GITHUB_TOKEN`. The `main` ruleset requires pull requests, so that push is
-rejected unless the GitHub Actions app is on the ruleset's bypass-actor list:
+**Releases do not work without this.** The Version Bump & Tag workflow pushes the
+release commit and tag **directly to `main`**, and the `main` ruleset requires
+pull requests, so the push needs an identity that is on the ruleset's bypass list.
+
+`GITHUB_TOKEN` cannot be that identity. Ruleset bypass actors may only be
+org-owned GitHub Apps, and the first-party GitHub Actions app is not one:
 
 ```
-Settings → Rules → Rulesets → main → Bypass list → Add → GitHub Actions
+$ gh api -X PUT repos/honeycombio/honeycomb-grafana-plugin/rulesets/19977291 \
+    --input bypass-with-actions.json
+422 Validation Failed
+"Actor GitHub Actions integration must be part of the ruleset source or owner organization"
 ```
+
+So the workflow authenticates with a PAT instead:
+
+1. A user already on the bypass list (**Settings → Rules → Rulesets → main →
+   Bypass list** — currently org admins, repo admins, `@McSick`,
+   `@sumitabhattacharjee`, and the `field-reliability-engineering` team) creates
+   a **fine-grained PAT** scoped to this repository with:
+   - *Contents*: **Read and write** (push the commit and tag)
+2. Store it as a repository secret named **`RELEASE_TOKEN`**
+   (Settings → Secrets and variables → Actions).
+3. Note the expiry. When it lapses, releases stop — see the failure signature below.
 
 This is not hypothetical. It is exactly why the first run of this pipeline failed
 and `v0.1.3` was never published:
@@ -142,9 +159,26 @@ remote: - Changes must be made through a pull request.
  ! [remote rejected] main -> main (push declined due to repository rule violations)
 ```
 
-The failure mode is quiet — the bump workflow goes red while CI stays green, so
+**The failure mode is quiet**: the bump workflow goes red while CI stays green, so
 nothing looks broken on the PR that triggered it. If releases stop appearing,
-check the Version Bump & Tag run first.
+check the Version Bump & Tag run first — an expired or missing `RELEASE_TOKEN`
+looks exactly like the error above.
+
+Because a PAT is tied to a person, it is worth migrating to an org-owned GitHub
+App (installed on the repo, added as a bypass actor, token minted with
+`actions/create-github-app-token`) if this repo outlives its current owners.
+
+### Why the tag push is what triggers a release
+
+Using a PAT has a second effect that the design now depends on: events created
+with a PAT trigger workflows, while `GITHUB_TOKEN`-created events are suppressed
+to prevent recursion. So pushing the tag starts
+[Release](.github/workflows/release.yml) on its own, and a bot tag and a
+human-pushed tag follow one identical path.
+
+An earlier version invoked the release workflow through `workflow_call`
+specifically to work around the `GITHUB_TOKEN` suppression. That is no longer
+needed, and keeping it would mean two full runs racing to publish the same tag.
 
 ### Other
 
