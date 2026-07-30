@@ -6,9 +6,9 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/cache"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/transform"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/cache"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/transform"
 )
 
 // runSLOQuery dispatches an SLO query (list or single) to Honeycomb's /1/slos

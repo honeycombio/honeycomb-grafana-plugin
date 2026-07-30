@@ -3,7 +3,7 @@ package transform
 import (
 	"strings"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 // unitForCalc returns a Grafana field-config Unit string for a calculation

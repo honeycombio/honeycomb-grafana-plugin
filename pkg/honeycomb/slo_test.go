@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 func TestClient_ListSLOs(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 	"net/url"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/cache"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/cache"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 // AllDatasetsSlug is Honeycomb's special meta-dataset for environment-wide

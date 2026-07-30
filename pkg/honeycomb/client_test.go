@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 // newTestServer creates an httptest.Server that handles requests with the

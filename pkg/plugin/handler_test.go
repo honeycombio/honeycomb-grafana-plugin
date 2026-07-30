@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/plugin"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/plugin"
 )
 
 // recordingSender captures what CallResource sends back. backend's
