@@ -139,16 +139,54 @@ $ gh api -X PUT repos/honeycombio/honeycomb-grafana-plugin/rulesets/19977291 \
 "Actor GitHub Actions integration must be part of the ruleset source or owner organization"
 ```
 
-So the workflow authenticates with a PAT instead:
+So the workflow authenticates with a PAT instead.
 
-1. A user already on the bypass list (**Settings → Rules → Rulesets → main →
-   Bypass list** — currently org admins, repo admins, `@McSick`,
-   `@sumitabhattacharjee`, and the `field-reliability-engineering` team) creates
-   a **fine-grained PAT** scoped to this repository with:
-   - *Contents*: **Read and write** (push the commit and tag)
-2. Store it as a repository secret named **`RELEASE_TOKEN`**
-   (Settings → Secrets and variables → Actions).
-3. Note the expiry. When it lapses, releases stop — see the failure signature below.
+#### Who creates it
+
+**It must be a user already on the ruleset bypass list** — currently org admins,
+repo admins, `@McSick`, `@sumitabhattacharjee`, and the
+`field-reliability-engineering` team (Settings → Rules → Rulesets → main → Bypass
+list). Bypass is keyed to the token's *owner*, not to the token's permissions, so
+no amount of scope on a non-bypassed user's token will get past `GH013`.
+
+#### Exact permissions (fine-grained PAT)
+
+github.com → Settings → Developer settings → Personal access tokens →
+Fine-grained tokens → Generate new token:
+
+| Field | Value |
+|---|---|
+| Resource owner | **honeycombio** |
+| Repository access | Only select repositories → **honeycomb-grafana-plugin** |
+| Repository permissions → **Contents** | **Read and write** |
+| Repository permissions → Metadata | Read-only (GitHub selects this automatically) |
+
+**That is the whole list.** `Contents: Read and write` is what grants `git push`,
+and it covers both branches and tags — refs under `refs/tags/` need no separate
+permission, which is the most common point of confusion here.
+
+Deliberately *not* needed:
+
+- **Workflows** — a PAT without it is rejected when a push touches
+  `.github/workflows/`, but the bump commit only stages `package.json`,
+  `pkg/honeycomb/client.go`, and `CHANGELOG.md`. Add it only if the bump ever
+  starts editing workflow files.
+- **Actions**, **Pull requests**, **Administration** — the bump neither reads
+  workflow state, opens PRs, nor changes settings.
+- Anything for the GitHub Release itself. The Release workflow publishes with the
+  standard `GITHUB_TOKEN` and its own `contents: write`, which is unaffected.
+
+Note that organizations can require admin approval for fine-grained tokens, and
+can disable them entirely. If fine-grained is not available here, a **classic**
+token works: scope **`public_repo`** is sufficient, since this repo is public —
+`repo` grants more than is needed.
+
+#### Then
+
+1. Store it as a repository secret named **`RELEASE_TOKEN`**
+   (Settings → Secrets and variables → Actions → New repository secret).
+2. Note the expiry. When it lapses, releases stop — with exactly the failure
+   signature below, which is why the workflow checks for the secret up front.
 
 This is not hypothetical. It is exactly why the first run of this pipeline failed
 and `v0.1.3` was never published:
