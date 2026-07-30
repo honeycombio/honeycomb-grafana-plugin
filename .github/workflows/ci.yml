@@ -56,7 +56,11 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # Pinned, not `latest`. With `latest`, a new golangci-lint release
+          # enables new default checks and turns this job red on a PR that had
+          # nothing to do with it — and a gate that fails for reasons unrelated
+          # to the change is a gate people learn to ignore. Bump deliberately.
+          version: v1.64.8
           install-mode: goinstall
 
   # ---------------------------------------------------------------------------
