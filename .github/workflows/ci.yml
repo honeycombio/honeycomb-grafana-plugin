@@ -10,51 +10,55 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   # ---------------------------------------------------------------------------
-  # Go backend
+  # Go backend: compile, test (race detector), lint
   # ---------------------------------------------------------------------------
-  go:
-    name: Go build & test
+  backend:
+    name: Backend build & test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
           cache: true
 
-      - name: Install Mage
-        run: go install github.com/magefile/mage@latest
-
-      - name: Download dependencies
-        run: go mod download
-
       - name: Verify dependencies
-        run: go mod verify
+        run: |
+          go mod download
+          go mod verify
 
-      - name: Build backend
-        run: mage build:linux
+      - name: Build backend (all packages)
+        run: go build ./pkg/...
 
+      # Scoped to ./pkg/... — `./...` would also traverse Go files that ship
+      # inside node_modules.
       - name: Run Go tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: go test -race -coverprofile=coverage.out ./pkg/...
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.out
-          flags: go
-        continue-on-error: true
+      - name: Enforce Go coverage floor
+        run: |
+          TOTAL=$(go tool cover -func=coverage.out | awk '/^total:/ {sub(/%/, "", $3); print $3}')
+          echo "Total Go coverage: ${TOTAL}%"
+          MINIMUM=60
+          if awk -v t="$TOTAL" -v m="$MINIMUM" 'BEGIN {exit !(t < m)}'; then
+            echo "ERROR: Go coverage ${TOTAL}% is below the ${MINIMUM}% floor."
+            exit 1
+          fi
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           install-mode: goinstall
 
   # ---------------------------------------------------------------------------
-  # TypeScript frontend
+  # TypeScript frontend: typecheck, lint, test, build
   # ---------------------------------------------------------------------------
   frontend:
     name: Frontend build & test
@@ -70,31 +74,35 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
-        run: npm run build
-
-      - name: Run frontend tests
-        run: npm test -- --passWithNoTests --ci
-
       - name: Type check
         run: npm run typecheck
 
       - name: Lint
         run: npm run lint
 
+      - name: Run frontend tests
+        run: npm test -- --ci --coverage
+
+      - name: Build frontend
+        run: npm run build
+
   # ---------------------------------------------------------------------------
-  # Plugin validation
+  # Package + smoke test: prove every PR could ship.
+  # Builds the full plugin, packages it with the same script the release
+  # workflow uses, installs the zip into a real Grafana container, and checks
+  # that Grafana loads the plugin and can spawn the backend binary.
   # ---------------------------------------------------------------------------
-  validate:
-    name: Validate plugin
+  package:
+    name: Package & smoke test
     runs-on: ubuntu-latest
-    needs: [go, frontend]
+    needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
+          cache: true
 
       - uses: actions/setup-node@v4
         with:
@@ -102,31 +110,107 @@ jobs:
           cache: npm
 
       - name: Install Mage
-        run: go install github.com/magefile/mage@latest
+        run: go install github.com/magefile/mage@v1.17.2
 
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build everything
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build backend (linux/amd64)
+        run: mage build:linux
+
+      - name: Package plugin
+        run: ./scripts/package.sh
+
+      - name: Smoke test packaged plugin in Grafana
+        run: ./scripts/smoke-test.sh
+
+      - name: Validate with grafana/plugin-validator
+        # Informational for now: the validator also enforces catalog-submission
+        # rules (signing, screenshots) that do not apply to GitHub-only
+        # releases. Promote to blocking once tuned via a validator config.
+        #
+        # Pinned rather than @latest: this compiles and runs third-party code in
+        # a job with the repo checked out, so the version should change only
+        # when we choose to bump it. continue-on-error (not `|| true`) keeps the
+        # step non-blocking while still surfacing the real exit code in the log.
+        continue-on-error: true
         run: |
-          mage build:linux
+          go run github.com/grafana/plugin-validator/pkg/cmd/plugincheck2@v0.41.0 \
+            build/*.zip
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-zip
+          path: |
+            build/*.zip
+            build/*.sha1
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # E2E: drive a real Grafana (min supported + latest) with Playwright.
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: E2E (Grafana ${{ matrix.grafana-version }})
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        # Oldest supported version (plugin.json grafanaDependency) and latest.
+        grafana-version: ['11.0.0', 'latest']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install Mage
+        run: go install github.com/magefile/mage@v1.17.2
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build plugin
+        run: |
           npm run build
+          mage build:linux
 
-      - name: Validate plugin.json
-        run: |
-          if ! jq . src/plugin.json > /dev/null 2>&1; then
-            echo "src/plugin.json is not valid JSON"
-            exit 1
-          fi
-          echo "plugin.json is valid"
+      - name: Start Grafana
+        run: GRAFANA_VERSION=${{ matrix.grafana-version }} docker compose up -d
 
-      - name: Check for secrets in code
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for Grafana
         run: |
-          # Ensure no API keys or bearer tokens are hardcoded.
-          if grep -r --include="*.go" --include="*.ts" --include="*.tsx" \
-            -E "(Bearer|api[_-]?key|apikey)\s*[:=]\s*['\"][a-zA-Z0-9]{20,}" . \
-            --exclude-dir=node_modules --exclude-dir=.git; then
-            echo "ERROR: Potential hardcoded secret detected"
-            exit 1
-          fi
-          echo "No hardcoded secrets found"
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Grafana did not become healthy"
+          docker compose logs grafana | tail -50
+          exit 1
+
+      - name: Run e2e tests
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-grafana-${{ matrix.grafana-version }}
+          path: playwright-report/
+          retention-days: 7

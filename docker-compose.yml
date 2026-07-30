@@ -1,22 +1,23 @@
-version: '3.8'
-
 # Local development environment for testing the Honeycomb Grafana plugin.
 #
 # Usage:
-#   1. Build the plugin:   mage build:linux && npm run build
-#   2. Start Grafana:      docker-compose up
+#   1. Build the plugin:   npm run build && mage build:linux
+#      (on Apple Silicon:  npm run build && mage build:linuxARM64)
+#   2. Start Grafana:      docker compose up
 #   3. Open Grafana:       http://localhost:3000 (admin/admin)
 #   4. Add the Honeycomb datasource and configure your API key.
 #
-# The plugin directory is mounted directly so changes to dist/ are picked up
-# on Grafana restart (ctrl-c then docker-compose up).
+# dist/ is mounted directly so changes are picked up on Grafana restart
+# (ctrl-c then docker compose up). Pin a Grafana version with
+# GRAFANA_VERSION=11.5.0 docker compose up.
 
 services:
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:${GRAFANA_VERSION:-latest}
     container_name: honeycomb-grafana-dev
     ports:
-      - "3000:3000"
+      # Override with GRAFANA_PORT if 3000 is taken on your machine.
+      - "${GRAFANA_PORT:-3000}:3000"
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -26,8 +27,8 @@ services:
       - GF_LOG_LEVEL=debug
       - GF_PATHS_PLUGINS=/var/lib/grafana/plugins
     volumes:
-      # Mount the built plugin.
-      - ./:/var/lib/grafana/plugins/honeycombio-honeycomb-datasource
+      # Mount the built plugin (dist/ only — not the whole repo).
+      - ./dist:/var/lib/grafana/plugins/honeycombio-honeycomb-datasource
       # Mount provisioning config for auto-configured datasource.
       - ./provisioning:/etc/grafana/provisioning
       # Persist Grafana state.

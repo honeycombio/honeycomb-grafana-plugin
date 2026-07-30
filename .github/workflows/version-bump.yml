@@ -24,6 +24,9 @@ jobs:
   bump:
     name: Bump version and tag
     runs-on: ubuntu-latest
+    outputs:
+      # Empty when the bump was skipped, which gates the release job below.
+      tag: ${{ steps.tag.outputs.tag }}
     if: >
       (github.event_name == 'workflow_dispatch') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
@@ -79,25 +82,42 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
 
-          # src/plugin.json
-          node -e "
-            const fs = require('fs');
-            const plugin = JSON.parse(fs.readFileSync('src/plugin.json', 'utf8'));
-            plugin.info.version = '${NEXT}';
-            plugin.info.updated = new Date().toISOString().split('T')[0];
-            fs.writeFileSync('src/plugin.json', JSON.stringify(plugin, null, 2) + '\n');
-          "
+          # src/plugin.json needs no edit: it uses %VERSION%/%TODAY%
+          # placeholders that webpack stamps from package.json at build time.
 
           # pkg/honeycomb/client.go (pluginVersion constant)
           sed -i "s|pluginVersion = \"[0-9]*\.[0-9]*\.[0-9]*\"|pluginVersion = \"${NEXT}\"|g" pkg/honeycomb/client.go
 
+          # CHANGELOG.md — rename [Unreleased] to this version so the release
+          # notes point at a real section. No-ops if there is nothing to promote.
+          node scripts/promote-changelog.js "${NEXT}"
+
       - name: Commit and tag
+        id: tag
         if: steps.check.outputs.skip == 'false'
         run: |
           NEXT="${{ steps.version.outputs.next }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json src/plugin.json pkg/honeycomb/client.go
+          git add package.json pkg/honeycomb/client.go CHANGELOG.md
           git commit -m "chore: release v${NEXT} [skip ci]"
-          git tag "v${NEXT}"
-          git push origin main --follow-tags
+          # Annotated, and pushed explicitly: --follow-tags silently skips
+          # lightweight tags, which is why v0.1.1 and v0.1.2 never reached
+          # origin and no release was ever published.
+          git tag -a "v${NEXT}" -m "v${NEXT}"
+          git push origin main
+          git push origin "v${NEXT}"
+          echo "tag=v${NEXT}" >> "$GITHUB_OUTPUT"
+
+  # Call the release workflow directly rather than relying on the tag push to
+  # trigger it: events created with GITHUB_TOKEN do not start new workflow runs,
+  # so `on: push: tags` in release.yml never fires for an automated bump.
+  release:
+    name: Release
+    needs: bump
+    if: needs.bump.outputs.tag != ''
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.bump.outputs.tag }}

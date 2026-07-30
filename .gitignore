@@ -19,6 +19,11 @@ gpx_honeycomb-datasource*
 
 # Test output
 test-results/
+playwright-report/
+playwright/.auth/
+
+# Packaged plugin archives
+build/
 
 # Go vendor (if used)
 vendor/

@@ -92,4 +92,4 @@ The following items are planned for future releases:
 - [ ] **Plugin signing** — submit to Grafana plugin catalogue with signature
 - [ ] **E2E tests** — automated end-to-end tests against a live Honeycomb environment
 
-Have a feature request? Open an issue at [github.com/honeycombio/grafana-honeycomb-datasource/issues](https://github.com/honeycombio/grafana-honeycomb-datasource/issues).
+Have a feature request? Open an issue at [github.com/honeycombio/honeycomb-grafana-plugin/issues](https://github.com/honeycombio/honeycomb-grafana-plugin/issues).
