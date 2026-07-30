@@ -65,8 +65,9 @@ jobs:
       # release is always reproducible from its tagged source.
       # -----------------------------------------------------------------------
       - name: Verify tag matches package.json version
+        env:
+          TAG_VERSION: ${{ steps.rel.outputs.version }}
         run: |
-          TAG_VERSION="${{ steps.rel.outputs.version }}"
           PKG_VERSION="$(jq -r .version package.json)"
           if [[ "${TAG_VERSION}" != "${PKG_VERSION}" ]]; then
             echo "ERROR: tag v${TAG_VERSION} does not match package.json version ${PKG_VERSION}."
@@ -111,7 +112,9 @@ jobs:
         run: mage build:all
 
       - name: Package plugin
-        run: ./scripts/package.sh "${{ steps.rel.outputs.version }}"
+        env:
+          REL_VERSION: ${{ steps.rel.outputs.version }}
+        run: ./scripts/package.sh "${REL_VERSION}"
 
       - name: Smoke test packaged plugin in Grafana
         run: ./scripts/smoke-test.sh
@@ -119,11 +122,17 @@ jobs:
       # -----------------------------------------------------------------------
       # Publish
       # -----------------------------------------------------------------------
+      # Every step that consumes a resolved value routes it through env: rather than
+      # interpolating ${{ }} straight into the script. The tag is only checked for a
+      # leading `v`, not for shell metacharacters, so keeping this consistent stops
+      # the unsafe shape from being copied into the next step someone adds.
       - name: Collect release metadata
         id: meta
+        env:
+          REL_VERSION: ${{ steps.rel.outputs.version }}
         run: |
           {
-            echo "version=${{ steps.rel.outputs.version }}"
+            echo "version=${REL_VERSION}"
             echo "archive=$(basename build/*.zip)"
             echo "sha1=$(cat build/*.sha1)"
           } >> "$GITHUB_OUTPUT"

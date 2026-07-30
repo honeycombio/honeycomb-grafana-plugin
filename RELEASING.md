@@ -8,17 +8,32 @@ plugins directory and run.
 
 Releases happen automatically:
 
-1. **Merge a PR to `main`.** When CI succeeds on `main`, the
-   [Version Bump & Tag workflow](.github/workflows/version-bump.yml) bumps the
-   **patch** version in `package.json` and `pkg/honeycomb/client.go`, renames the
-   CHANGELOG's `## [Unreleased]` heading to `## [X.Y.Z] — <date>`, commits
-   `chore: release vX.Y.Z [skip ci]`, and pushes the annotated `vX.Y.Z` tag.
-   (`src/plugin.json` uses `%VERSION%`/`%TODAY%` placeholders stamped by
+1. **Merge a PR to `main` that changes shipped code.** When CI succeeds on
+   `main`, the [Version Bump & Tag workflow](.github/workflows/version-bump.yml)
+   bumps the **patch** version in `package.json` and `pkg/honeycomb/client.go`,
+   renames the CHANGELOG's `## [Unreleased]` heading to `## [X.Y.Z] — <date>`,
+   commits `chore: release vX.Y.Z [skip ci]`, and pushes the annotated `vX.Y.Z`
+   tag. (`src/plugin.json` uses `%VERSION%`/`%TODAY%` placeholders stamped by
    webpack at build time, so it needs no edit.)
 
-2. **For a minor or major bump**, trigger the same workflow manually:
-   GitHub → Actions → *Version Bump & Tag* → *Run workflow* → choose
-   `minor`/`major`. Do this **before** merging further PRs, or the auto-patch
+   Merges that cannot change the artifact — CI config, `scripts/`, `tests/`,
+   docs — **do not** cut a release. That decision lives in
+   [`scripts/release-relevant.sh`](scripts/release-relevant.sh), which you can
+   run yourself against any commit range:
+
+   ```bash
+   ./scripts/release-relevant.sh HEAD^1 HEAD   # exit 0 = would release, 1 = would skip
+   ```
+
+   Note that `README.md` and `CHANGELOG.md` *do* ship inside the zip but are
+   still treated as skip-worthy; those edits ride along with the next code
+   release rather than burning a version of their own.
+
+2. **For a minor or major bump — or to force a release regardless of what
+   changed** — trigger the workflow manually: GitHub → Actions →
+   *Version Bump & Tag* → *Run workflow* → choose `minor`/`major`. A manual
+   dispatch skips both the release-relevance check and the "last commit was a
+   release" guard. Do this **before** merging further PRs, or the auto-patch
    will fire first.
 
 3. **The bump workflow then calls the
@@ -89,21 +104,49 @@ correctness observable rather than assumed:
 | Go tests with `-race` + 60% coverage floor | CI + release | backend logic behaves; no data races |
 | Frontend unit tests (Jest) | CI + release | query filtering/variable logic behaves |
 | Typecheck + ESLint + golangci-lint | CI | no unsound types or common bug patterns |
-| Packaging dry-run | CI (every PR) | a release from this commit would package |
+| Packaging dry-run, all 6 platform binaries | CI (every PR) | a release from this commit would build and package |
 | Container smoke test | CI + release | the exact artifact loads in real Grafana and the backend binary runs |
 | Playwright e2e vs Grafana 11.0.0 & latest | CI | config + query editors work in a real browser across supported versions |
-| Tag ↔ `package.json` guard | release | releases are reproducible from tagged source |
+| Tag ↔ `package.json` guard | release | the release is built from the source that tag points at |
 
-Recommended repo settings (configure on GitHub):
+## Repo settings
 
-- **Branch protection on `main`**: require the `Backend`, `Frontend`,
-  `Package & smoke test`, and `E2E` checks to pass; require PR review.
+### Required status check
 
-  ⚠️ The Version Bump & Tag workflow pushes the release commit **directly to
-  `main`** with `GITHUB_TOKEN`. Protection will reject that push and silently
-  stop all releases. Before enabling it, either add `github-actions[bot]` to the
-  bypass list ("Allow specified actors to bypass required pull requests"), or
-  convert the bump to open a PR instead of pushing.
+Require exactly one check on `main`: **`CI required`**.
+
+That job (`ci-required` in [ci.yml](.github/workflows/ci.yml)) depends on every
+other CI job and fails if any of them did not succeed. Requiring it rather than
+the individual jobs is deliberate — job names drift, and matrix jobs produce one
+check context per entry (`E2E (Grafana 11.0.0)`, `E2E (Grafana latest)`), so a
+hand-maintained list silently stops guarding a new Grafana version and blocks
+every PR forever when an old one is removed. Adding a job to that workflow's
+`needs:` list covers it automatically.
+
+### ⚠️ The release bot must be able to push to `main`
+
+The Version Bump & Tag workflow pushes the release commit **directly to `main`**
+with `GITHUB_TOKEN`. The `main` ruleset requires pull requests, so that push is
+rejected unless the GitHub Actions app is on the ruleset's bypass-actor list:
+
+```
+Settings → Rules → Rulesets → main → Bypass list → Add → GitHub Actions
+```
+
+This is not hypothetical. It is exactly why the first run of this pipeline failed
+and `v0.1.3` was never published:
+
+```
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: - Changes must be made through a pull request.
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+```
+
+The failure mode is quiet — the bump workflow goes red while CI stays green, so
+nothing looks broken on the PR that triggered it. If releases stop appearing,
+check the Version Bump & Tag run first.
+
+### Other
 
 - Enable Dependabot security updates. (Secret scanning and push protection are
   already on — default for public repos under the enterprise account.)
