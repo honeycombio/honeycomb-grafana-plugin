@@ -11,7 +11,7 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/plugin"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/plugin"
 )
 
 // newTestDatasource creates a Datasource backed by a mock Honeycomb server.

@@ -12,7 +12,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Container smoke test that installs the packaged zip into a real Grafana and verifies the plugin loads and the backend binary answers a health check (`scripts/smoke-test.sh`), run on every PR and before every release.
 - Playwright e2e test suite using `@grafana/plugin-e2e`, run in CI against Grafana 11.0.0 and latest (`tests/e2e/`).
 - Frontend unit tests for query filtering, template variable substitution, and variable queries (`src/datasource.test.ts`).
-- Go test coverage floor (60%) enforced in CI.
+- Go test coverage floor enforced in CI, set to 65% against 68.9% actual so it acts as a regression alarm rather than a number pinned to current coverage.
+- Backend tests for the resource handler (`CallResource`, dataset and column listing, the `__all__` short-circuit, per-dataset cache scoping, upstream error mapping), the logs query helpers, the retry/backoff schedule including the `Retry-After` and jitter paths, `FlexibleTime` and `ResultEntry` JSON decoding, and the SLO endpoints. `pkg/honeycomb` coverage rose from 53.3% to 83.9%, `pkg/plugin` from 45.4% to 58.6%.
 - `mage build:linuxARM64` target for local smoke testing on Apple Silicon.
 - `RELEASING.md` documenting the release process and quality gates.
 - `scripts/promote-changelog.js`, run during the version bump, renames the `[Unreleased]` heading to the released version and updates the link references — so release notes point at a real changelog section instead of a permanent "Unreleased".
@@ -32,6 +33,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The release workflow previously produced a zip without the compiled backend binaries or the required `<plugin-id>/` root directory, so it could not be installed into Grafana.
 - README no longer suggests `grafana-cli plugins install`, which cannot work until the plugin is in the Grafana catalog.
 - `docker-compose.yml` now mounts only `dist/` into Grafana (not the whole repo) and supports `GRAFANA_PORT`/`GRAFANA_VERSION` overrides.
+- The Go module path was still `github.com/honeycombio/grafana-honeycomb-datasource`, a repo that does not exist. Renamed to `github.com/honeycombio/honeycomb-grafana-plugin` along with all 39 internal import paths. The `User-Agent` header sent to the Honeycomb API changed from `grafana-honeycomb-datasource/<version>` to `honeycomb-grafana-plugin/<version>` at the same time — anything filtering on the old value needs updating.
 - Every GitHub link pointed at `honeycombio/grafana-honeycomb-datasource`, which does not exist — including the README's release-download link and the two `plugin.json` links Grafana renders on the plugin page. All now point at `honeycombio/honeycomb-grafana-plugin`.
 
 ## [0.1.0] — 2025-01-15

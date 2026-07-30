@@ -43,11 +43,23 @@ jobs:
       - name: Run Go tests
         run: go test -race -coverprofile=coverage.out ./pkg/...
 
+      # A regression alarm, not a target. The floor sits deliberately below actual
+      # coverage (68.9% at the time of writing, across 1201 statements) so that
+      # ~45 statements of genuinely untested new code are needed to trip it. The
+      # previous floor of 60 against 60.4% actual left roughly five statements of
+      # slack, which meant unrelated PRs failed on this check and the reflex was
+      # to lower the number rather than write a test.
+      #
+      # Raise it when coverage rises; do not raise it to match.
       - name: Enforce Go coverage floor
         run: |
           TOTAL=$(go tool cover -func=coverage.out | awk '/^total:/ {sub(/%/, "", $3); print $3}')
+          if [[ -z "${TOTAL}" ]]; then
+            echo "ERROR: could not read a coverage total from coverage.out." >&2
+            exit 1
+          fi
           echo "Total Go coverage: ${TOTAL}%"
-          MINIMUM=60
+          MINIMUM=65
           if awk -v t="$TOTAL" -v m="$MINIMUM" 'BEGIN {exit !(t < m)}'; then
             echo "ERROR: Go coverage ${TOTAL}% is below the ${MINIMUM}% floor."
             exit 1

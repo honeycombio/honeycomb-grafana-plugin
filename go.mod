@@ -1,4 +1,4 @@
-module github.com/honeycombio/grafana-honeycomb-datasource
+module github.com/honeycombio/honeycomb-grafana-plugin
 
 go 1.25.7
 

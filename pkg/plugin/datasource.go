@@ -19,11 +19,11 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/cache"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/fingerprint"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/ratelimit"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/transform"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/cache"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/fingerprint"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/ratelimit"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/transform"
 )
 
 // Ensure Datasource satisfies the required interfaces at compile time.
