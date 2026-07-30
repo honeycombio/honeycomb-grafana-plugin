@@ -69,7 +69,39 @@ rm -rf "${BUILD_DIR}"
 mkdir -p "${STAGING_DIR}"
 cp -r "${DIST_DIR}/." "${STAGING_DIR}/"
 
-(cd "${BUILD_DIR}" && zip -qr "${ARCHIVE_NAME}" "${PLUGIN_ID}")
+# ---------------------------------------------------------------------------
+# Make the archive depend only on the commit, not on when it was built.
+#
+# Two things used to vary between builds of identical source: `info.updated`,
+# which webpack stamps from the wall clock via the %TODAY% placeholder, and the
+# mtimes zip copies into its headers. So packaging the same tag twice produced
+# two different checksums.
+#
+# That matters because the release notes publish a SHA1 and tell users to verify
+# against it, while RELEASING.md recommends re-running the Release workflow
+# against an existing tag to recover from a failure. Doing so would quietly
+# change the checksum out from under anyone who had already verified.
+# ---------------------------------------------------------------------------
+SOURCE_DATE="$(git -C "${REPO_ROOT}" log -1 --format=%cs 2>/dev/null || true)"
+if [[ -z "${SOURCE_DATE}" ]]; then
+  # Not a git checkout (an exported tarball, say). Keep whatever webpack stamped
+  # rather than failing the build, but say so — the archive won't be reproducible.
+  echo "WARNING: not a git checkout, so the archive will not be reproducible." >&2
+else
+  jq --arg d "${SOURCE_DATE}" '.info.updated = $d' "${STAGING_DIR}/plugin.json" \
+    > "${STAGING_DIR}/plugin.json.tmp"
+  mv "${STAGING_DIR}/plugin.json.tmp" "${STAGING_DIR}/plugin.json"
+  find "${STAGING_DIR}" -exec touch -h -t "${SOURCE_DATE//-/}0000" {} +
+fi
+
+# Feed zip a sorted file list rather than letting it walk the tree: `zip -r`
+# recurses in readdir order, which is not guaranteed stable across machines or
+# filesystems. -X drops the extra attribute fields (uid/gid, native timestamps)
+# that would otherwise re-introduce per-build variation.
+(
+  cd "${BUILD_DIR}"
+  find "${PLUGIN_ID}" -print | LC_ALL=C sort | zip -qX "${ARCHIVE_NAME}" -@
+)
 
 # Checksum for release verification.
 (cd "${BUILD_DIR}" && shasum -a 1 "${ARCHIVE_NAME}" | awk '{print $1}' > "${ARCHIVE_NAME}.sha1")

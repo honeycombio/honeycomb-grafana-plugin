@@ -10,6 +10,10 @@
 # dist/ is mounted directly so changes are picked up on Grafana restart
 # (ctrl-c then docker compose up). Pin a Grafana version with
 # GRAFANA_VERSION=11.5.0 docker compose up.
+#
+# Build before the first `docker compose up`. Starting the stack with no dist/
+# makes Docker create it as an empty root-owned directory, which then makes
+# `npm run build` fail on permissions. If that happens: `sudo rm -rf dist`.
 
 services:
   grafana:
