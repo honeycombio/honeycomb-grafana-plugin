@@ -8,20 +8,35 @@ plugins directory and run.
 
 Releases happen automatically:
 
-1. **Merge a PR to `main`.** When CI succeeds on `main`, the
-   [Version Bump & Tag workflow](.github/workflows/version-bump.yml) bumps the
-   **patch** version in `package.json` and `pkg/honeycomb/client.go`, renames the
-   CHANGELOG's `## [Unreleased]` heading to `## [X.Y.Z] — <date>`, commits
-   `chore: release vX.Y.Z [skip ci]`, and pushes the annotated `vX.Y.Z` tag.
-   (`src/plugin.json` uses `%VERSION%`/`%TODAY%` placeholders stamped by
+1. **Merge a PR to `main` that changes shipped code.** When CI succeeds on
+   `main`, the [Version Bump & Tag workflow](.github/workflows/version-bump.yml)
+   bumps the **patch** version in `package.json` and `pkg/honeycomb/client.go`,
+   renames the CHANGELOG's `## [Unreleased]` heading to `## [X.Y.Z] — <date>`,
+   commits `chore: release vX.Y.Z [skip ci]`, and pushes the annotated `vX.Y.Z`
+   tag. (`src/plugin.json` uses `%VERSION%`/`%TODAY%` placeholders stamped by
    webpack at build time, so it needs no edit.)
 
-2. **For a minor or major bump**, trigger the same workflow manually:
-   GitHub → Actions → *Version Bump & Tag* → *Run workflow* → choose
-   `minor`/`major`. Do this **before** merging further PRs, or the auto-patch
+   Merges that cannot change the artifact — CI config, `scripts/`, `tests/`,
+   docs — **do not** cut a release. That decision lives in
+   [`scripts/release-relevant.sh`](scripts/release-relevant.sh), which you can
+   run yourself against any commit range:
+
+   ```bash
+   ./scripts/release-relevant.sh HEAD^1 HEAD   # exit 0 = would release, 1 = would skip
+   ```
+
+   Note that `README.md` and `CHANGELOG.md` *do* ship inside the zip but are
+   still treated as skip-worthy; those edits ride along with the next code
+   release rather than burning a version of their own.
+
+2. **For a minor or major bump — or to force a release regardless of what
+   changed** — trigger the workflow manually: GitHub → Actions →
+   *Version Bump & Tag* → *Run workflow* → choose `minor`/`major`. A manual
+   dispatch skips both the release-relevance check and the "last commit was a
+   release" guard. Do this **before** merging further PRs, or the auto-patch
    will fire first.
 
-3. **The bump workflow then calls the
+3. **Pushing that tag starts the
    [Release workflow](.github/workflows/release.yml)**, which:
    - verifies the tag matches `package.json`
    - runs the full Go and frontend test suites
@@ -35,10 +50,10 @@ Releases happen automatically:
    - publishes a GitHub Release with the zip, a SHA1 checksum, and
      auto-generated release notes
 
-   It is invoked via `workflow_call` rather than by the tag push, because a tag
-   pushed with `GITHUB_TOKEN` does not trigger `on: push` workflows — relying on
-   the tag event is why no release was published for v0.1.1 or v0.1.2. A tag
-   pushed by a *human* does trigger it, so manual tags work too.
+   A tag pushed by a human triggers exactly the same run, so manual tags work
+   identically. This depends on the bump pushing with a PAT rather than
+   `GITHUB_TOKEN` — see [`RELEASE_TOKEN`](#-required-the-release_token-secret)
+   below.
 
 If any step fails, no release is published. Fix the problem, then either re-run
 the Release workflow against the existing tag (Actions → *Release* → *Run
@@ -89,21 +104,121 @@ correctness observable rather than assumed:
 | Go tests with `-race` + 60% coverage floor | CI + release | backend logic behaves; no data races |
 | Frontend unit tests (Jest) | CI + release | query filtering/variable logic behaves |
 | Typecheck + ESLint + golangci-lint | CI | no unsound types or common bug patterns |
-| Packaging dry-run | CI (every PR) | a release from this commit would package |
+| Packaging dry-run, all 6 platform binaries | CI (every PR) | a release from this commit would build and package |
 | Container smoke test | CI + release | the exact artifact loads in real Grafana and the backend binary runs |
 | Playwright e2e vs Grafana 11.0.0 & latest | CI | config + query editors work in a real browser across supported versions |
-| Tag ↔ `package.json` guard | release | releases are reproducible from tagged source |
+| Tag ↔ `package.json` guard | release | the release is built from the source that tag points at |
 
-Recommended repo settings (configure on GitHub):
+## Repo settings
 
-- **Branch protection on `main`**: require the `Backend`, `Frontend`,
-  `Package & smoke test`, and `E2E` checks to pass; require PR review.
+### Required status check
 
-  ⚠️ The Version Bump & Tag workflow pushes the release commit **directly to
-  `main`** with `GITHUB_TOKEN`. Protection will reject that push and silently
-  stop all releases. Before enabling it, either add `github-actions[bot]` to the
-  bypass list ("Allow specified actors to bypass required pull requests"), or
-  convert the bump to open a PR instead of pushing.
+Require exactly one check on `main`: **`CI required`**.
+
+That job (`ci-required` in [ci.yml](.github/workflows/ci.yml)) depends on every
+other CI job and fails if any of them did not succeed. Requiring it rather than
+the individual jobs is deliberate — job names drift, and matrix jobs produce one
+check context per entry (`E2E (Grafana 11.0.0)`, `E2E (Grafana latest)`), so a
+hand-maintained list silently stops guarding a new Grafana version and blocks
+every PR forever when an old one is removed. Adding a job to that workflow's
+`needs:` list covers it automatically.
+
+### ⚠️ Required: the `RELEASE_TOKEN` secret
+
+**Releases do not work without this.** The Version Bump & Tag workflow pushes the
+release commit and tag **directly to `main`**, and the `main` ruleset requires
+pull requests, so the push needs an identity that is on the ruleset's bypass list.
+
+`GITHUB_TOKEN` cannot be that identity. Ruleset bypass actors may only be
+org-owned GitHub Apps, and the first-party GitHub Actions app is not one:
+
+```
+$ gh api -X PUT repos/honeycombio/honeycomb-grafana-plugin/rulesets/19977291 \
+    --input bypass-with-actions.json
+422 Validation Failed
+"Actor GitHub Actions integration must be part of the ruleset source or owner organization"
+```
+
+So the workflow authenticates with a PAT instead.
+
+#### Who creates it
+
+**It must be a user already on the ruleset bypass list** — currently org admins,
+repo admins, `@McSick`, `@sumitabhattacharjee`, and the
+`field-reliability-engineering` team (Settings → Rules → Rulesets → main → Bypass
+list). Bypass is keyed to the token's *owner*, not to the token's permissions, so
+no amount of scope on a non-bypassed user's token will get past `GH013`.
+
+#### Exact permissions (fine-grained PAT)
+
+github.com → Settings → Developer settings → Personal access tokens →
+Fine-grained tokens → Generate new token:
+
+| Field | Value |
+|---|---|
+| Resource owner | **honeycombio** |
+| Repository access | Only select repositories → **honeycomb-grafana-plugin** |
+| Repository permissions → **Contents** | **Read and write** |
+| Repository permissions → Metadata | Read-only (GitHub selects this automatically) |
+
+**That is the whole list.** `Contents: Read and write` is what grants `git push`,
+and it covers both branches and tags — refs under `refs/tags/` need no separate
+permission, which is the most common point of confusion here.
+
+Deliberately *not* needed:
+
+- **Workflows** — a PAT without it is rejected when a push touches
+  `.github/workflows/`, but the bump commit only stages `package.json`,
+  `pkg/honeycomb/client.go`, and `CHANGELOG.md`. Add it only if the bump ever
+  starts editing workflow files.
+- **Actions**, **Pull requests**, **Administration** — the bump neither reads
+  workflow state, opens PRs, nor changes settings.
+- Anything for the GitHub Release itself. The Release workflow publishes with the
+  standard `GITHUB_TOKEN` and its own `contents: write`, which is unaffected.
+
+Note that organizations can require admin approval for fine-grained tokens, and
+can disable them entirely. If fine-grained is not available here, a **classic**
+token works: scope **`public_repo`** is sufficient, since this repo is public —
+`repo` grants more than is needed.
+
+#### Then
+
+1. Store it as a repository secret named **`RELEASE_TOKEN`**
+   (Settings → Secrets and variables → Actions → New repository secret).
+2. Note the expiry. When it lapses, releases stop — with exactly the failure
+   signature below, which is why the workflow checks for the secret up front.
+
+This is not hypothetical. It is exactly why the first run of this pipeline failed
+and `v0.1.3` was never published:
+
+```
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: - Changes must be made through a pull request.
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+```
+
+**The failure mode is quiet**: the bump workflow goes red while CI stays green, so
+nothing looks broken on the PR that triggered it. If releases stop appearing,
+check the Version Bump & Tag run first — an expired or missing `RELEASE_TOKEN`
+looks exactly like the error above.
+
+Because a PAT is tied to a person, it is worth migrating to an org-owned GitHub
+App (installed on the repo, added as a bypass actor, token minted with
+`actions/create-github-app-token`) if this repo outlives its current owners.
+
+### Why the tag push is what triggers a release
+
+Using a PAT has a second effect that the design now depends on: events created
+with a PAT trigger workflows, while `GITHUB_TOKEN`-created events are suppressed
+to prevent recursion. So pushing the tag starts
+[Release](.github/workflows/release.yml) on its own, and a bot tag and a
+human-pushed tag follow one identical path.
+
+An earlier version invoked the release workflow through `workflow_call`
+specifically to work around the `GITHUB_TOKEN` suppression. That is no longer
+needed, and keeping it would mean two full runs racing to publish the same tag.
+
+### Other
 
 - Enable Dependabot security updates. (Secret scanning and push protection are
   already on — default for public repos under the enterprise account.)

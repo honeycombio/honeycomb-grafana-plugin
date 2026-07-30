@@ -1,13 +1,16 @@
 name: Release
 
-# Releases reach this workflow three ways, all converging on the same job:
+# Releases reach this workflow two ways, both converging on the same job:
 #
-#   workflow_call     — how automated releases fire. The Version Bump & Tag
-#                       workflow calls us directly after pushing the tag. It
-#                       must call rather than rely on the tag event: a tag
-#                       pushed with GITHUB_TOKEN does not trigger `on: push`.
-#   push (tags)       — a tag pushed by a human, which does trigger normally.
+#   push (tags)       — the normal path, for a tag pushed by the Version Bump &
+#                       Tag workflow or by a human. Identical either way.
 #   workflow_dispatch — re-cut a release by hand for an existing tag.
+#
+# There used to be a third, `workflow_call`, because the bump workflow pushed with
+# GITHUB_TOKEN and GITHUB_TOKEN-created events do not trigger workflows. The bump
+# now pushes with a PAT, whose events are delivered normally, so the tag push
+# starts this workflow on its own. Keeping workflow_call as well would mean two
+# full runs racing to publish the same tag.
 #
 # This workflow rebuilds everything from source, packages the plugin with the
 # same script CI exercises on every PR, smoke tests the artifact in a real
@@ -17,18 +20,20 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_call:
-    inputs:
-      tag:
-        description: 'Tag to release, e.g. v0.1.3. Must already exist on origin.'
-        required: true
-        type: string
   workflow_dispatch:
     inputs:
       tag:
         description: 'Tag to release, e.g. v0.1.3. Must already exist on origin.'
         required: true
         type: string
+
+# One release per tag at a time. cancel-in-progress is deliberately false: a
+# half-cancelled publish is worse than a queued one, and because packaging is
+# reproducible a second run of the same tag produces byte-identical assets, so
+# re-publishing is harmless.
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -65,8 +70,9 @@ jobs:
       # release is always reproducible from its tagged source.
       # -----------------------------------------------------------------------
       - name: Verify tag matches package.json version
+        env:
+          TAG_VERSION: ${{ steps.rel.outputs.version }}
         run: |
-          TAG_VERSION="${{ steps.rel.outputs.version }}"
           PKG_VERSION="$(jq -r .version package.json)"
           if [[ "${TAG_VERSION}" != "${PKG_VERSION}" ]]; then
             echo "ERROR: tag v${TAG_VERSION} does not match package.json version ${PKG_VERSION}."
@@ -111,7 +117,9 @@ jobs:
         run: mage build:all
 
       - name: Package plugin
-        run: ./scripts/package.sh "${{ steps.rel.outputs.version }}"
+        env:
+          REL_VERSION: ${{ steps.rel.outputs.version }}
+        run: ./scripts/package.sh "${REL_VERSION}"
 
       - name: Smoke test packaged plugin in Grafana
         run: ./scripts/smoke-test.sh
@@ -119,11 +127,17 @@ jobs:
       # -----------------------------------------------------------------------
       # Publish
       # -----------------------------------------------------------------------
+      # Every step that consumes a resolved value routes it through env: rather than
+      # interpolating ${{ }} straight into the script. The tag is only checked for a
+      # leading `v`, not for shell metacharacters, so keeping this consistent stops
+      # the unsafe shape from being copied into the next step someone adds.
       - name: Collect release metadata
         id: meta
+        env:
+          REL_VERSION: ${{ steps.rel.outputs.version }}
         run: |
           {
-            echo "version=${{ steps.rel.outputs.version }}"
+            echo "version=${REL_VERSION}"
             echo "archive=$(basename build/*.zip)"
             echo "sha1=$(cat build/*.sha1)"
           } >> "$GITHUB_OUTPUT"

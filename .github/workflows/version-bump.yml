@@ -31,24 +31,70 @@ jobs:
       (github.event_name == 'workflow_dispatch') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     steps:
+      # Checked before checkout so a missing or expired token says so, instead of
+      # surfacing as an opaque 403 from git several steps later. This workflow's
+      # failures are invisible from the PR that triggered it, so the error message
+      # is the only thing anyone will have to go on.
+      - name: Check RELEASE_TOKEN is configured
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [[ -z "${RELEASE_TOKEN}" ]]; then
+            echo "ERROR: the RELEASE_TOKEN secret is not set, so the release commit cannot be pushed." >&2
+            echo "       The main ruleset requires pull requests and GITHUB_TOKEN cannot be exempted" >&2
+            echo "       from it. See the RELEASE_TOKEN section of RELEASING.md for how to create it." >&2
+            exit 1
+          fi
+
+      # RELEASE_TOKEN, not GITHUB_TOKEN. The `main` ruleset requires pull
+      # requests, and GITHUB_TOKEN cannot be exempted from it: ruleset bypass
+      # actors may only be org-owned GitHub Apps, and the first-party GitHub
+      # Actions app is not one — adding it returns
+      #   422 "Actor GitHub Actions integration must be part of the ruleset
+      #        source or owner organization"
+      # So the push has to authenticate as an identity that IS on the bypass
+      # list. See RELEASING.md for how to mint and store the token.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Skip if last commit is a version bump
+      # Two independent reasons to skip, both specific to the automatic
+      # (workflow_run) path. A manual dispatch always bumps: a human asking for a
+      # minor/major release should not be second-guessed, and there is no
+      # runaway-loop risk because nothing triggered us.
+      - name: Decide whether to bump
         id: check
         run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "Manual dispatch — bumping regardless of what changed."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Never bump our own release commit.
           MSG=$(git log -1 --format='%s')
           if [[ "$MSG" == chore:\ release\ v* ]]; then
+            echo "Last commit is a release commit — skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          # Don't mint a release for changes that cannot reach the artifact — a CI
+          # tweak or a doc fix should not burn a version number. HEAD^1..HEAD is the
+          # whole merge: correct for both squash commits and merge commits, and the
+          # main ruleset requires pull requests, so main only ever advances one merge
+          # at a time.
+          if ! ./scripts/release-relevant.sh "HEAD^1" HEAD; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Determine bump type
         if: steps.check.outputs.skip == 'false'
@@ -101,23 +147,31 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json pkg/honeycomb/client.go CHANGELOG.md
           git commit -m "chore: release v${NEXT} [skip ci]"
-          # Annotated, and pushed explicitly: --follow-tags silently skips
-          # lightweight tags, which is why v0.1.1 and v0.1.2 never reached
-          # origin and no release was ever published.
+          # Annotated: --follow-tags silently skips lightweight tags, which is why
+          # v0.1.1 and v0.1.2 never reached origin and no release was ever published.
           git tag -a "v${NEXT}" -m "v${NEXT}"
-          git push origin main
-          git push origin "v${NEXT}"
+          # --atomic so the branch and the tag land together or not at all. Pushed
+          # separately, a tag failure would leave main carrying the release commit
+          # with no tag — and because that commit is [skip ci], no workflow_run
+          # fires, so nothing would ever retry and the version would be lost.
+          git push --atomic origin main "refs/tags/v${NEXT}"
           echo "tag=v${NEXT}" >> "$GITHUB_OUTPUT"
 
-  # Call the release workflow directly rather than relying on the tag push to
-  # trigger it: events created with GITHUB_TOKEN do not start new workflow runs,
-  # so `on: push: tags` in release.yml never fires for an automated bump.
-  release:
-    name: Release
-    needs: bump
-    if: needs.bump.outputs.tag != ''
-    permissions:
-      contents: write
-    uses: ./.github/workflows/release.yml
-    with:
-      tag: ${{ needs.bump.outputs.tag }}
+      # The tag push above is what starts the Release workflow. This works
+      # because RELEASE_TOKEN is a PAT: events created with a PAT trigger
+      # workflows normally, whereas GITHUB_TOKEN-created events are suppressed
+      # to prevent recursion. That suppression is why an earlier version of this
+      # workflow had to invoke release.yml through `workflow_call` — with a PAT
+      # the tag event is delivered, so bot tags and human tags now follow one
+      # identical path instead of two.
+      - name: Confirm the tag was pushed
+        if: steps.check.outputs.skip == 'false'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${TAG}" > /dev/null; then
+            echo "ERROR: ${TAG} is not on origin, so the Release workflow will never fire." >&2
+            exit 1
+          fi
+          echo "${TAG} is on origin; the Release workflow should now be running."
+          echo "Watch: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/release.yml"

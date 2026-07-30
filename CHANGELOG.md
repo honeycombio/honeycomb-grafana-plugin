@@ -8,7 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
-- Release pipeline that packages a Grafana-installable zip (all platform binaries, SHA1 checksum) and publishes it to GitHub Releases (`.github/workflows/release.yml`, `scripts/package.sh`). Invoked by the version-bump workflow via `workflow_call`, and also runnable from a human-pushed tag or manually against an existing tag.
+- Release pipeline that packages a Grafana-installable zip (all platform binaries, SHA1 checksum) and publishes it to GitHub Releases (`.github/workflows/release.yml`, `scripts/package.sh`). Triggered by pushing a `v*` tag — from the version-bump workflow or by hand — and also runnable manually against an existing tag.
 - Container smoke test that installs the packaged zip into a real Grafana and verifies the plugin loads and the backend binary answers a health check (`scripts/smoke-test.sh`), run on every PR and before every release.
 - Playwright e2e test suite using `@grafana/plugin-e2e`, run in CI against Grafana 11.0.0 and latest (`tests/e2e/`).
 - Frontend unit tests for query filtering, template variable substitution, and variable queries (`src/datasource.test.ts`).
@@ -16,9 +16,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `mage build:linuxARM64` target for local smoke testing on Apple Silicon.
 - `RELEASING.md` documenting the release process and quality gates.
 - `scripts/promote-changelog.js`, run during the version bump, renames the `[Unreleased]` heading to the released version and updates the link references — so release notes point at a real changelog section instead of a permanent "Unreleased".
+- `scripts/release-relevant.sh`, which gates the auto-bump so that merges unable to change the artifact (CI config, `scripts/`, `tests/`, docs) no longer mint a patch release. Runnable locally against any commit range.
+- `CI required` aggregate status check — one stable context to require in branch protection, instead of a hand-maintained list of job names that drifts and cannot cover matrix jobs.
 
 ### Fixed
-- **No release was ever published.** The version-bump workflow created a lightweight tag and pushed with `git push --follow-tags`, which only pushes annotated tags, so the `v0.1.1` and `v0.1.2` tags never reached origin and the release workflow never ran. Tags are now annotated and pushed explicitly, and the release workflow is invoked directly (a tag pushed with `GITHUB_TOKEN` cannot trigger `on: push`).
+- **No release was ever published.** Two independent causes. First, the version-bump workflow created a lightweight tag and pushed with `git push --follow-tags`, which only pushes annotated tags, so the `v0.1.1` and `v0.1.2` tags never reached origin and the release workflow never ran. Tags are now annotated and the branch and tag are pushed together with `--atomic`. Second, the `main` ruleset requires pull requests and cannot exempt `GITHUB_TOKEN` — ruleset bypass actors may only be org-owned GitHub Apps, and the first-party GitHub Actions app is not one — so the push was rejected outright with `GH013`. The bump workflow now authenticates with a `RELEASE_TOKEN` PAT belonging to a bypass-listed user, which `RELEASING.md` documents as a required setup step. Because PAT-created events do trigger workflows (unlike `GITHUB_TOKEN` ones), pushing the tag now starts the release directly and the `workflow_call` hop was removed, so bot and human tags follow one identical path.
+- CI built only the linux/amd64 backend binary while releases build all six platforms, so a cross-compile break could pass every PR check and only fail after the release tag had been pushed. CI now runs `mage build:all`.
+- `npm test` no longer passes with `--passWithNoTests`, which made the frontend test gate unfalsifiable: a test-discovery regression was indistinguishable from success in both CI and the release workflow.
 - `src/plugin.json` referenced a bundled dashboard that does not exist, which broke plugin validation; the version field is now stamped from `package.json` at build time via `%VERSION%`.
 - The release workflow previously produced a zip without the compiled backend binaries or the required `<plugin-id>/` root directory, so it could not be installed into Grafana.
 - README no longer suggests `grafana-cli plugins install`, which cannot work until the plugin is in the Grafana catalog.

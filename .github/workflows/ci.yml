@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # No branch filter on pull_request. With `branches: [main]`, a PR targeting
+  # anything else got no CI at all — which silently excluded every stacked PR,
+  # exactly the ones where an unreviewed base makes CI most valuable.
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -54,7 +56,11 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # Pinned, not `latest`. With `latest`, a new golangci-lint release
+          # enables new default checks and turns this job red on a PR that had
+          # nothing to do with it — and a gate that fails for reasons unrelated
+          # to the change is a gate people learn to ignore. Bump deliberately.
+          version: v1.64.8
           install-mode: goinstall
 
   # ---------------------------------------------------------------------------
@@ -118,8 +124,13 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build backend (linux/amd64)
-        run: mage build:linux
+      # build:all, not build:linux — the release packages all six platform binaries
+      # (linux amd64/arm/arm64, darwin amd64/arm64, windows amd64). Building only
+      # linux here let a cross-compile break pass every PR check and fail at release
+      # time, after the tag was already pushed. Building everything also means the
+      # zip CI smoke tests has the same shape as the one users download.
+      - name: Build backend (all platforms)
+        run: mage build:all
 
       - name: Package plugin
         run: ./scripts/package.sh
@@ -130,7 +141,9 @@ jobs:
       - name: Validate with grafana/plugin-validator
         # Informational for now: the validator also enforces catalog-submission
         # rules (signing, screenshots) that do not apply to GitHub-only
-        # releases. Promote to blocking once tuned via a validator config.
+        # releases. Promote to blocking once tuned via a validator config —
+        # tracked in FRE-182. Until then this is not a gate: it would not catch a
+        # repeat of the phantom `includes` dashboard that shipped in 0.1.2.
         #
         # Pinned rather than @latest: this compiles and runs third-party code in
         # a job with the repo checked out, so the version should change only
@@ -214,3 +227,35 @@ jobs:
           name: playwright-report-grafana-${{ matrix.grafana-version }}
           path: playwright-report/
           retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # The single status check to require in branch protection / repository rules.
+  #
+  # Requiring the individual jobs by name does not survive contact with reality:
+  # the names drift (`Backend build & test`, not `Backend`), and a matrix job
+  # produces one context per entry (`E2E (Grafana 11.0.0)`, `E2E (Grafana
+  # latest)`), so adding a Grafana version silently leaves it unguarded and
+  # removing one wedges main on a check that will never report again.
+  #
+  # This job collapses all of that into one stable context name. Add a job to
+  # `needs` and it is covered automatically.
+  # ---------------------------------------------------------------------------
+  ci-required:
+    name: CI required
+    runs-on: ubuntu-latest
+    # always() is load-bearing: without it this job is skipped whenever a
+    # dependency fails, and a skipped required check reads as pending, not failed
+    # — which would hold PRs open forever instead of reporting the failure.
+    if: always()
+    needs: [backend, frontend, package, e2e]
+    steps:
+      - name: Verify all required jobs succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS"
+          if jq -e 'to_entries[] | select(.value.result != "success")' <<< "$NEEDS" > /dev/null; then
+            echo "ERROR: one or more required jobs did not succeed." >&2
+            exit 1
+          fi
+          echo "All required jobs succeeded."
