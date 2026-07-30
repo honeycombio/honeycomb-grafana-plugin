@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # No branch filter on pull_request. With `branches: [main]`, a PR targeting
+  # anything else got no CI at all — which silently excluded every stacked PR,
+  # exactly the ones where an unreviewed base makes CI most valuable.
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
