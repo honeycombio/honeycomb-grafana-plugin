@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 // QueryMode controls how the Honeycomb result is mapped to Grafana frames.

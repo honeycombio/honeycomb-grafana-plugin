@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/cache"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/cache"
 )
 
 func TestCache_SetAndGet(t *testing.T) {

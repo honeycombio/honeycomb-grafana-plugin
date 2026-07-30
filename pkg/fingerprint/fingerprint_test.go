@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/fingerprint"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/fingerprint"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 func TestQueryShapeKey_Stability(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/plugin"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/plugin"
 )
 
 func main() {

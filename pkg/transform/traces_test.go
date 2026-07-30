@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/transform"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/transform"
 )
 
 // TestToTraceFrames_BasicShape — three spans of one trace map cleanly to a

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/transform"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/transform"
 )
 
 // QueryType selects the top-level Honeycomb query kind. "metrics" is the

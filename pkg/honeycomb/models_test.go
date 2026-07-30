@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 // FlexibleTime exists because Honeycomb returns event times as either an epoch
