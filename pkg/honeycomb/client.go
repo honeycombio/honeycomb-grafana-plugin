@@ -21,7 +21,7 @@ const (
 	defaultAPIURL      = "https://api.honeycomb.io"
 	defaultHTTPTimeout = 30 * time.Second
 
-	pluginVersion = "0.1.2"
+	pluginVersion = "0.1.3"
 
 	// Polling config for Get Query Result.
 	pollInitialInterval = 200 * time.Millisecond
