@@ -101,13 +101,23 @@ correctness observable rather than assumed:
 
 | Gate | Where | What it proves |
 |------|-------|----------------|
-| Go tests with `-race` + 60% coverage floor | CI + release | backend logic behaves; no data races |
+| Go tests with `-race` + 65% coverage floor | CI + release | backend logic behaves; no data races |
 | Frontend unit tests (Jest) | CI + release | query filtering/variable logic behaves |
 | Typecheck + ESLint + golangci-lint | CI | no unsound types or common bug patterns |
 | Packaging dry-run, all 6 platform binaries | CI (every PR) | a release from this commit would build and package |
 | Container smoke test | CI + release | the exact artifact loads in real Grafana and the backend binary runs |
 | Playwright e2e vs Grafana 11.0.0 & latest | CI | config + query editors work in a real browser across supported versions |
 | Tag ↔ `package.json` guard | release | the release is built from the source that tag points at |
+| Deterministic packaging | CI + release | re-packaging the same commit reproduces the same zip and SHA1 |
+
+On that last row: `scripts/package.sh` stamps `info.updated` and every file mtime
+from the commit date rather than the wall clock, and feeds `zip` a sorted file
+list, so the published SHA1 is a property of the commit. This matters because
+re-running the Release workflow against an existing tag is the documented
+recovery path — without it, doing so would silently change the checksum users
+were told to verify against. Reproducibility holds for a given commit *and*
+toolchain version; it is not a claim of bit-identity across Go or webpack
+upgrades.
 
 ## Repo settings
 
