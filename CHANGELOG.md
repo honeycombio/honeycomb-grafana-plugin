@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-08-07
+
 ### Added
 - Go test coverage floor raised from 60% to 65%, measured against 68.9% actual, so it acts as a regression alarm rather than a number pinned to current coverage.
 - Backend tests for the resource handler (`CallResource`, dataset and column listing, the `__all__` short-circuit, per-dataset cache scoping, upstream error mapping), the logs query helpers, the retry/backoff schedule including the `Retry-After` and jitter paths, `FlexibleTime` and `ResultEntry` JSON decoding, and the SLO endpoints. `pkg/honeycomb` coverage rose from 53.3% to 83.9%, `pkg/plugin` from 45.4% to 58.6%.
@@ -67,6 +69,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Example provisioning configuration and example dashboard.
 - Apache 2.0 license.
 
-[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.4
 [0.1.3]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.3
 [0.1.0]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.0
