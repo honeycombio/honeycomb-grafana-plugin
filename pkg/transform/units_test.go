@@ -3,7 +3,7 @@ package transform
 import (
 	"testing"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 func TestUnitForCalc(t *testing.T) {

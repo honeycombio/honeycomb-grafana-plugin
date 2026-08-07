@@ -12,10 +12,18 @@ const templateVars: Record<string, string> = {
   $service: 'checkout',
 };
 
+// A jest.fn rather than a plain arrow so tests can assert *how* it was called.
+// The datasource has to forward scopedVars as the second argument, and a mock
+// that ignored it would keep passing if that ever regressed — variables would
+// then resolve against the dashboard instead of the panel's own scope, which is
+// wrong in exactly the cases (repeated panels, table row links) that are hardest
+// to notice.
+const replaceMock = jest.fn((s: string, _scopedVars?: unknown) => templateVars[s] ?? s);
+
 jest.mock('@grafana/runtime', () => ({
   ...jest.requireActual('@grafana/runtime'),
   getTemplateSrv: () => ({
-    replace: (s: string) => templateVars[s] ?? s,
+    replace: (...args: unknown[]) => replaceMock(...(args as [string, unknown?])),
   }),
 }));
 
@@ -71,14 +79,74 @@ describe('HoneycombDataSource', () => {
         true
       );
     });
+
+    // The queryType branches below short-circuit before the calculations check,
+    // so each needs its own case. Their guards are the ones that make a panel
+    // silently render nothing when an id field is blank.
+    it('skips single-SLO queries without an SLO id', () => {
+      expect(ds.filterQuery(makeQuery({ queryType: 'slo', sloResultType: 'single' }))).toBe(false);
+      expect(ds.filterQuery(makeQuery({ queryType: 'slo', sloResultType: 'single', sloId: '  ' }))).toBe(false);
+    });
+
+    it('runs single-SLO queries with an SLO id', () => {
+      expect(ds.filterQuery(makeQuery({ queryType: 'slo', sloResultType: 'single', sloId: 'slo-123' }))).toBe(true);
+    });
+
+    it('runs SLO list queries with only a dataset', () => {
+      expect(ds.filterQuery(makeQuery({ queryType: 'slo', sloResultType: 'list', calculations: [] }))).toBe(true);
+    });
+
+    it('runs logs queries with only a dataset', () => {
+      expect(ds.filterQuery(makeQuery({ queryType: 'logs', calculations: [] }))).toBe(true);
+    });
+
+    it('skips single-trace queries without a trace id', () => {
+      expect(ds.filterQuery(makeQuery({ queryType: 'traces', tracesResultType: 'single' }))).toBe(false);
+      expect(ds.filterQuery(makeQuery({ queryType: 'traces', tracesResultType: 'single', traceId: ' ' }))).toBe(false);
+    });
+
+    // tracesResultType defaults to 'single' via `?? 'single'`, so a traces query
+    // with the field unset must still demand a trace id. Easy to regress into
+    // treating undefined as 'search' and firing an unbounded query.
+    it('treats traces queries with no result type as single, so a trace id is required', () => {
+      expect(ds.filterQuery(makeQuery({ queryType: 'traces' }))).toBe(false);
+      expect(ds.filterQuery(makeQuery({ queryType: 'traces', traceId: 'abc123' }))).toBe(true);
+    });
+
+    it('runs trace search queries with only a dataset', () => {
+      expect(ds.filterQuery(makeQuery({ queryType: 'traces', tracesResultType: 'search', calculations: [] }))).toBe(
+        true
+      );
+    });
+
+    it('skips queries of any type without a dataset', () => {
+      for (const queryType of ['metrics', 'slo', 'logs', 'traces', 'raw'] as const) {
+        expect(ds.filterQuery(makeQuery({ queryType, dataset: '' }))).toBe(false);
+      }
+    });
   });
 
   describe('applyTemplateVariables', () => {
-    const scopedVars: ScopedVars = {};
+    const scopedVars: ScopedVars = { __interval: { text: '1m', value: '1m' } };
+
+    beforeEach(() => {
+      replaceMock.mockClear();
+    });
 
     it('substitutes variables in the dataset', () => {
       const result = ds.applyTemplateVariables(makeQuery({ dataset: '$dataset' }), scopedVars);
       expect(result.dataset).toBe('production');
+    });
+
+    // Guards the panel's own variable scope: without scopedVars, Grafana resolves
+    // against the dashboard, which silently returns the wrong value for repeated
+    // panels and data links.
+    it('forwards scopedVars to the template service', () => {
+      ds.applyTemplateVariables(makeQuery({ dataset: '$dataset' }), scopedVars);
+      expect(replaceMock).toHaveBeenCalledWith('$dataset', scopedVars);
+      for (const call of replaceMock.mock.calls) {
+        expect(call[1]).toBe(scopedVars);
+      }
     });
 
     it('substitutes variables in breakdowns and filters', () => {
@@ -95,6 +163,27 @@ describe('HoneycombDataSource', () => {
       const query = makeQuery({ filters: [{ column: 'status', op: '>', value: 500 }] });
       const result = ds.applyTemplateVariables(query, scopedVars);
       expect(result.filters?.[0].value).toBe(500);
+    });
+
+    // havings is the only substituted field whose column is optional, so it is
+    // the only one guarding against replace(undefined).
+    it('substitutes variables in havings', () => {
+      const query = makeQuery({
+        havings: [{ calculateOp: 'P95', column: '$column', op: '>', value: '$service' }],
+      });
+      const result = ds.applyTemplateVariables(query, scopedVars);
+      expect(result.havings?.[0]).toEqual({
+        calculateOp: 'P95',
+        column: 'duration_ms',
+        op: '>',
+        value: 'checkout',
+      });
+    });
+
+    it('leaves an omitted having column and numeric value alone', () => {
+      const query = makeQuery({ havings: [{ op: '>', value: 100 }] });
+      const result = ds.applyTemplateVariables(query, scopedVars);
+      expect(result.havings?.[0]).toEqual({ op: '>', value: 100 });
     });
 
     it('substitutes variables in raw JSON when present', () => {

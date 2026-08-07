@@ -7,6 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- Go test coverage floor raised from 60% to 65%, measured against 68.9% actual, so it acts as a regression alarm rather than a number pinned to current coverage.
+- Backend tests for the resource handler (`CallResource`, dataset and column listing, the `__all__` short-circuit, per-dataset cache scoping, upstream error mapping), the logs query helpers, the retry/backoff schedule including the `Retry-After` and jitter paths, `FlexibleTime` and `ResultEntry` JSON decoding, and the SLO endpoints. `pkg/honeycomb` coverage rose from 53.3% to 83.9%, `pkg/plugin` from 45.4% to 58.6%.
+- `npm run typecheck` now also typechecks `tests/` against `tests/tsconfig.json`. The e2e specs were previously never typechecked — the root config only includes `src/`, and `playwright test` transpiles via esbuild without checking types — so a broken fixture signature surfaced as a Grafana-boot-time failure instead of a type error.
+- Frontend tests for the `slo`, `logs`, and `traces` branches of `filterQuery` (previously only the raw/builder tail was covered), for `havings` template substitution, and for `scopedVars` being forwarded to the template service.
+- Reproducible packaging: the same commit now always produces a byte-identical zip and SHA1. `info.updated`, archive file mtimes, and the build timestamp the Grafana SDK embeds in each binary are all derived from the commit date instead of the wall clock, and `zip` is fed a sorted file list. `SOURCE_DATE_EPOCH` is honoured for builds outside a git checkout.
+
+### Fixed
+- The smoke test's backend check accepted any HTTP status below 500, so a 404 from an empty datasource UID, a 401, or a non-JSON error page all reported "backend binary spawned and responded". It now requires HTTP 400 or 200 *and* a plugin-supplied message, guards the datasource UID, cross-checks the loaded plugin version against the packaged one, and derives the plugin id from `plugin.json` rather than from `ls`.
+- Re-running the release workflow against an existing tag produced a different SHA1 than the one already published in the release notes, because the zip was not reproducible. Users who verified the original checksum would have seen a mismatch.
+- The Go module path was still `github.com/honeycombio/grafana-honeycomb-datasource`, a repo that does not exist. Renamed to `github.com/honeycombio/honeycomb-grafana-plugin` along with all 39 internal import paths. The `User-Agent` header sent to the Honeycomb API changed from `grafana-honeycomb-datasource/<version>` to `honeycomb-grafana-plugin/<version>` at the same time — anything filtering on the old value needs updating.
+
 ## [0.1.3] — 2026-08-02
 
 ### Added

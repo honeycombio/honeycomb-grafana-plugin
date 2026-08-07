@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/ratelimit"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/ratelimit"
 )
 
 func TestLimiter_AllowsBurstImmediately(t *testing.T) {

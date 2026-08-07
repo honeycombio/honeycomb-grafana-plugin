@@ -108,7 +108,22 @@ npm run build && mage build:all   # build:all so the zip covers your host arch
 ./scripts/smoke-test.sh           # installs the zip into a real Grafana container
 ```
 
-CI runs both on every PR, so a green PR means a releasable commit. See
+The smoke test starts a throwaway Grafana on port 3999. Override with
+`SMOKE_TEST_PORT` if that is taken — note it is *not* `GRAFANA_PORT`, which
+belongs to the `docker compose` dev stack, so you can run both at once.
+
+Packaging is reproducible: the same commit always produces the same zip and the
+same SHA1, because `info.updated`, every file mtime, and the build timestamp the
+SDK embeds in each binary are all derived from the commit rather than the clock.
+Handy for confirming a change did not affect the artifact:
+
+```bash
+./scripts/package.sh && cp build/*.sha1 /tmp/first.sha1
+./scripts/package.sh && diff /tmp/first.sha1 build/*.sha1   # should be identical
+```
+
+CI runs the same build, package, and smoke test on every PR, across all six
+platform binaries — so a green PR means a releasable commit. See
 [RELEASING.md](RELEASING.md) for the release process itself.
 
 ## Code organization

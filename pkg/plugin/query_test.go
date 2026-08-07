@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/plugin"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/plugin"
 )
 
 func TestHoneycombQuery_Validate_RequiresDataset(t *testing.T) {

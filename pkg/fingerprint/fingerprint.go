@@ -16,7 +16,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/honeycombio/grafana-honeycomb-datasource/pkg/honeycomb"
+	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
 )
 
 // QuerySpec is the normalized, datasource-scoped representation of a query

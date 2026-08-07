@@ -8,7 +8,7 @@
     "test": "jest --maxWorkers 4",
     "e2e": "playwright test --tsconfig=tests/tsconfig.json",
     "e2e:report": "playwright show-report",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json",
     "lint": "eslint --cache .",
     "lint:fix": "npm run lint -- --fix",
     "sign": "npx --yes @grafana/sign-plugin@latest"

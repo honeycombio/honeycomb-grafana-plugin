@@ -244,7 +244,10 @@ func (c *Client) do(ctx context.Context, method, path string, body, dest interfa
 	req.Header.Set("X-Honeycomb-Team", c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "grafana-honeycomb-datasource/"+pluginVersion)
+	// Renamed alongside the module path. This value is wire-visible — it is what
+	// Honeycomb sees on every request from the plugin — so anything filtering on
+	// the old "grafana-honeycomb-datasource/..." string needs updating too.
+	req.Header.Set("User-Agent", "honeycomb-grafana-plugin/"+pluginVersion)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
