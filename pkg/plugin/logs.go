@@ -28,10 +28,15 @@ func (d *Datasource) runLogsQuery(ctx context.Context, gq backend.DataQuery, pq 
 		attrs = defaultLogAttributes()
 	}
 
+	filters, err := toHoneycombFilters(pq.Filters)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("logs filters: %v", err))
+	}
+
 	hq := honeycomb.Query{
 		Calculations:      []honeycomb.Calculation{{Op: "COUNT"}},
 		Breakdowns:        attrs,
-		Filters:           toHoneycombFilters(pq.Filters),
+		Filters:           filters,
 		FilterCombination: defaultedFilterCombination(pq.FilterCombination),
 		Limit:             defaultedLimit(pq.Limit, 1000),
 	}
@@ -132,18 +137,6 @@ func (d *Datasource) executeEventsQuery(
 
 	d.cache.Set(fingerprint.CompletedResultKey(execKey), result, d.ttlL3)
 	return result, nil
-}
-
-// toHoneycombFilters converts plugin filters to Honeycomb API filters.
-func toHoneycombFilters(in []Filter) []honeycomb.Filter {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make([]honeycomb.Filter, len(in))
-	for i, f := range in {
-		out[i] = honeycomb.Filter{Column: f.Column, Op: f.Op, Value: f.Value}
-	}
-	return out
 }
 
 func defaultedFilterCombination(s string) string {

@@ -56,6 +56,7 @@ export function FiltersEditor({ filters, filterCombination, columnOptions, onCha
 
       {filters.map((filter, idx) => {
         const noValue = NO_VALUE_FILTER_OPS.has(filter.op as FilterOp);
+        const isCollectionOp = filter.op === 'in' || filter.op === 'not-in';
         return (
           <InlineFieldRow key={idx}>
             <InlineField label={idx === 0 ? 'Column' : ''} labelWidth={8}>
@@ -84,7 +85,7 @@ export function FiltersEditor({ filters, filterCombination, columnOptions, onCha
             {!noValue && (
               <InlineField label={idx === 0 ? 'Value' : ''} labelWidth={6}>
                 <Input
-                  placeholder="value"
+                  placeholder={isCollectionOp ? 'a,b,c' : 'value'}
                   value={String(filter.value ?? '')}
                   onChange={(e) => updateFilter(idx, { value: e.currentTarget.value })}
                   width={16}

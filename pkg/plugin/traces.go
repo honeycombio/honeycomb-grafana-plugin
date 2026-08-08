@@ -84,13 +84,18 @@ func (d *Datasource) runTraceByID(ctx context.Context, gq backend.DataQuery, pq 
 // ID gets the standard "Open trace in Honeycomb" deep link via the existing
 // AttachTraceLinks path.
 func (d *Datasource) runTraceSearch(ctx context.Context, gq backend.DataQuery, pq HoneycombQuery) backend.DataResponse {
+	filters, err := toHoneycombFilters(pq.Filters)
+	if err != nil {
+		return backend.ErrDataResponse(backend.StatusBadRequest, fmt.Sprintf("trace search filters: %v", err))
+	}
+
 	hq := honeycomb.Query{
 		Calculations: []honeycomb.Calculation{
 			{Op: "COUNT"},
 			{Op: "MIN", Column: "duration_ms"},
 			{Op: "MAX", Column: "duration_ms"},
 		},
-		Filters:           toHoneycombFilters(pq.Filters),
+		Filters:           filters,
 		FilterCombination: defaultedFilterCombination(pq.FilterCombination),
 		Breakdowns:        []string{"trace.trace_id"},
 		Orders:            []honeycomb.Order{{Op: "COUNT", Order: "descending"}},
