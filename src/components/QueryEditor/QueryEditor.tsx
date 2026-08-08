@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { GrafanaTheme2, QueryEditorProps, SelectableValue } from '@grafana/data';
+import { GrafanaTheme2, PanelData, QueryEditorProps, SelectableValue } from '@grafana/data';
 import {
   CollapsableSection,
   Field,
@@ -41,6 +41,22 @@ import { TracesEditor } from './TracesEditor';
 type Props = QueryEditorProps<HoneycombDataSource, HoneycombQuery, HoneycombDataSourceOptions>;
 
 /**
+ * extractHoneycombQueryURL reads the Honeycomb result URL that the backend
+ * attaches as frame meta (custom.honeycombQueryURL) after a successful query.
+ * See ADR-004.
+ */
+function extractHoneycombQueryURL(data?: PanelData): string | undefined {
+  for (const frame of data?.series ?? []) {
+    const custom = frame.meta?.custom as Record<string, unknown> | undefined;
+    const url = custom?.honeycombQueryURL;
+    if (typeof url === 'string' && url.trim() !== '') {
+      return url;
+    }
+  }
+  return undefined;
+}
+
+/**
  * QueryEditor is the main query builder UI for the Honeycomb datasource.
  *
  * It provides two modes:
@@ -49,7 +65,7 @@ type Props = QueryEditorProps<HoneycombDataSource, HoneycombQuery, HoneycombData
  *
  * Template variables (${var_name}) are supported in any string input.
  */
-export function QueryEditor({ datasource, query, onChange, onRunQuery }: Props) {
+export function QueryEditor({ datasource, query, onChange, onRunQuery, data }: Props) {
   const theme = useTheme2();
   const styles = getStyles(theme);
 
@@ -57,6 +73,8 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery }: Props) 
     () => ({ ...defaultQuery(), ...query }) as HoneycombQuery,
     [query]
   );
+
+  const honeycombQueryURL = useMemo(() => extractHoneycombQueryURL(data), [data]);
 
   const allDatasetsOption: SelectableValue<string> = { label: 'All Datasets', value: ALL_DATASETS_SLUG, description: 'Query across all datasets in the environment' };
 
@@ -138,6 +156,33 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery }: Props) 
 
   const handleRunQuery = () => onRunQuery();
 
+  const handleOpenInHoneycomb = () => {
+    if (honeycombQueryURL) {
+      window.open(honeycombQueryURL, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const runActions = (
+    <div className={styles.runRow}>
+      <ToolbarButton variant="primary" onClick={handleRunQuery} icon="play">
+        Run query
+      </ToolbarButton>
+      <ToolbarButton
+        variant="canvas"
+        icon="external-link-alt"
+        disabled={!honeycombQueryURL}
+        tooltip={
+          honeycombQueryURL
+            ? 'Open this query result in Honeycomb'
+            : 'Run the query first to enable Open in Honeycomb'
+        }
+        onClick={handleOpenInHoneycomb}
+      >
+        Open in Honeycomb
+      </ToolbarButton>
+    </div>
+  );
+
   // Build column options for selects from loaded column metadata.
   const columnOptions: Array<SelectableValue<string>> = columns
     .filter((c) => !c.hidden)
@@ -196,11 +241,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery }: Props) 
       <div className={styles.wrapper}>
         {header}
         <SLOEditor query={q} onChange={update} />
-        <div className={styles.runRow}>
-          <ToolbarButton variant="primary" onClick={handleRunQuery} icon="play">
-            Run query
-          </ToolbarButton>
-        </div>
+        {runActions}
       </div>
     );
   }
@@ -211,11 +252,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery }: Props) 
       <div className={styles.wrapper}>
         {header}
         <LogsEditor query={q} columns={columns} onChange={update} onRunQuery={handleRunQuery} />
-        <div className={styles.runRow}>
-          <ToolbarButton variant="primary" onClick={handleRunQuery} icon="play">
-            Run query
-          </ToolbarButton>
-        </div>
+        {runActions}
       </div>
     );
   }
@@ -226,11 +263,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery }: Props) 
       <div className={styles.wrapper}>
         {header}
         <TracesEditor query={q} columns={columns} onChange={update} />
-        <div className={styles.runRow}>
-          <ToolbarButton variant="primary" onClick={handleRunQuery} icon="play">
-            Run query
-          </ToolbarButton>
-        </div>
+        {runActions}
       </div>
     );
   }
@@ -252,6 +285,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery }: Props) 
             placeholder='{"calculations":[{"op":"COUNT"}],"breakdowns":["service.name"]}'
           />
         </Field>
+        {runActions}
       </div>
     );
   }
@@ -385,11 +419,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery }: Props) 
         </CollapsableSection>
       </div>
 
-      <div className={styles.runRow}>
-        <ToolbarButton variant="primary" onClick={handleRunQuery} icon="play">
-          Run query
-        </ToolbarButton>
-      </div>
+      {runActions}
     </div>
   );
 }
@@ -455,6 +485,7 @@ function getStyles(theme: GrafanaTheme2) {
     runRow: css`
       display: flex;
       justify-content: flex-end;
+      gap: ${theme.spacing(1)};
       margin-top: ${theme.spacing(0.5)};
     `,
   };
