@@ -8,6 +8,7 @@ import {
   DEFAULT_API_URL,
   EU_API_URL,
   DEFAULT_TIME_WINDOW_DAYS,
+  DEFAULT_RATE_LIMIT_PER_MINUTE,
 } from '../../types';
 
 type Props = DataSourcePluginOptionsEditorProps<HoneycombDataSourceOptions, HoneycombSecureJsonData>;
@@ -91,6 +92,17 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
       jsonData: {
         ...jsonData,
         timeWindowDays: Number.isFinite(n) && n >= 0 ? n : undefined,
+      },
+    });
+  };
+
+  const onRateLimitChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const n = parseInt(e.target.value, 10);
+    onOptionsChange({
+      ...options,
+      jsonData: {
+        ...jsonData,
+        rateLimitPerMinute: Number.isFinite(n) && n > 0 ? n : undefined,
       },
     });
   };
@@ -179,6 +191,20 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
             placeholder={String(DEFAULT_TIME_WINDOW_DAYS)}
             value={jsonData.timeWindowDays ?? ''}
             onChange={onTimeWindowDaysChange}
+            width={12}
+          />
+        </Field>
+
+        <Field
+          label="Rate Limit (queries/minute)"
+          description="Maximum query executions per minute sent to Honeycomb by this data source. Honeycomb caps this at 10/min per team, so lower it if other clients share the team's budget."
+        >
+          <Input
+            type="number"
+            min={1}
+            placeholder={String(DEFAULT_RATE_LIMIT_PER_MINUTE)}
+            value={jsonData.rateLimitPerMinute ?? ''}
+            onChange={onRateLimitChange}
             width={12}
           />
         </Field>

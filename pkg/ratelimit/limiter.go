@@ -2,8 +2,10 @@
 // Honeycomb Create Query Result endpoint (hard cap: 10 requests/minute).
 //
 // See ADR-003 for the full rationale. Key decisions:
-//   - Rate: 8/60 tokens per second (20% headroom below Honeycomb's hard cap)
-//   - Burst: 3 (allows a short initial burst before queuing)
+//   - Rate: 8/60 tokens per second by default (20% headroom below Honeycomb's
+//     hard cap), overridable per datasource via rateLimitPerMinute
+//   - Burst: 3, capped at the per-minute rate (allows a short initial burst
+//     before queuing)
 //   - Max wait: 30 s before returning an error to Grafana
 //
 // The limiter is per-datasource-instance (one per API key), created in
@@ -19,8 +21,8 @@ import (
 )
 
 const (
-	// tokensPerMinute is our conservative limit (20% below Honeycomb's 10/min cap).
-	tokensPerMinute = 8
+	// DefaultTokensPerMinute is our conservative limit (20% below Honeycomb's 10/min cap).
+	DefaultTokensPerMinute = 8
 	// burstSize allows a short burst of back-to-back submissions at startup.
 	burstSize = 3
 	// maxWait is the longest we will block waiting for a token.
@@ -29,13 +31,26 @@ const (
 
 // Limiter wraps golang.org/x/time/rate.Limiter with Honeycomb-specific settings.
 type Limiter struct {
-	rl *rate.Limiter
+	rl              *rate.Limiter
+	tokensPerMinute int
 }
 
-// New returns a Limiter configured for the Create Query Result endpoint.
-func New() *Limiter {
-	r := rate.Every(time.Minute / tokensPerMinute) // one token every 7.5 s
-	return &Limiter{rl: rate.NewLimiter(r, burstSize)}
+// New returns a Limiter for the Create Query Result endpoint that allows
+// tokensPerMinute requests per minute. Values <= 0 use DefaultTokensPerMinute.
+func New(tokensPerMinute int) *Limiter {
+	if tokensPerMinute <= 0 {
+		tokensPerMinute = DefaultTokensPerMinute
+	}
+	// A burst larger than the rate would let a cold start exceed the
+	// configured per-minute budget.
+	burst := min(burstSize, tokensPerMinute)
+	r := rate.Every(time.Minute / time.Duration(tokensPerMinute))
+	return &Limiter{rl: rate.NewLimiter(r, burst), tokensPerMinute: tokensPerMinute}
+}
+
+// TokensPerMinute returns the configured steady-state rate.
+func (l *Limiter) TokensPerMinute() int {
+	return l.tokensPerMinute
 }
 
 // Wait blocks until a token is available or ctx is cancelled.
@@ -54,9 +69,9 @@ func (l *Limiter) Wait(ctx context.Context) error {
 		if waitCtx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf(
 				"timed out waiting for Honeycomb rate limit token after %s "+
-					"(Create Query Result is capped at %d req/min on Honeycomb's side; "+
+					"(this datasource limits Create Query Result to %d req/min; "+
 					"too many concurrent panels may be competing for capacity)",
-				maxWait, tokensPerMinute)
+				maxWait, l.tokensPerMinute)
 		}
 		return fmt.Errorf("rate limiter context cancelled: %w", err)
 	}

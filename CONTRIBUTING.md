@@ -133,7 +133,7 @@ pkg/
   honeycomb/    Honeycomb API client (HTTP, types, errors)
   fingerprint/  Query normalization and cache key generation
   cache/        TTL cache + singleflight deduplication
-  ratelimit/    Token bucket limiter (8 tokens/60 s)
+  ratelimit/    Token bucket limiter (8 tokens/60 s by default, configurable)
   transform/    Honeycomb response → Grafana DataFrames, deep links
   plugin/       Grafana backend datasource (QueryData, CheckHealth, CallResource)
 

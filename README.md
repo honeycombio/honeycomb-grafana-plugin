@@ -17,7 +17,7 @@ A production-grade Grafana backend data source plugin for [Honeycomb](https://ww
 - **Traces mode** — fetch a trace by ID (full span tree → Grafana trace view) or search traces by attribute filters
 - **First-class high-cardinality group-by** — each breakdown combination becomes a separate Grafana series; series are labeled, ordered, and limited with guardrails
 - **Aggressive caching** — three-level cache (query_id → result_id → completed result) protects against Honeycomb's 10 req/min Create Query Result limit
-- **Token-bucket rate limiter** — 8 tokens/60 s with automatic exponential backoff on 429
+- **Token-bucket rate limiter** — 8 tokens/60 s by default (configurable per data source) with automatic exponential backoff on 429
 - **Singleflight deduplication** — concurrent panels requesting identical data collapse into a single Honeycomb API call
 - **Deep links** — every metric field carries a DataLink to the matching Honeycomb query result; `trace.trace_id` columns get a per-row link straight to the trace in Honeycomb
 - **Dashboard variables** — list datasets or columns; use the result as template variables across all panels

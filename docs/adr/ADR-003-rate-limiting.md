@@ -23,6 +23,8 @@ The 20% headroom accounts for:
 
 Rate: 8/60 ≈ 0.133 tokens/second.
 
+**Amendment:** the rate is configurable per data source via `rateLimitPerMinute` (default 8). The burst is `min(3, rate)` so a low setting still holds during a cold start.
+
 ### 429 handling with fallback backoff
 
 Even with the token bucket, a 429 can occur (other clients sharing the key, or the Honeycomb window resetting at a different boundary). On a 429 from Create Query Result:

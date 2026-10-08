@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- Configurable rate limit for the Create Query Result endpoint. Set **Rate Limit (queries/minute)** under **Advanced** in the data source settings, or `rateLimitPerMinute` in provisioning `jsonData`. Defaults to 8 as before. The burst is capped at the configured rate so that a low setting still holds during a cold start.
+
+### Changed
+- `ratelimit.New` now takes the tokens-per-minute rate as an argument (values <= 0 use the default of 8).
+
 ## [0.1.4] — 2026-08-07
 
 ### Added
