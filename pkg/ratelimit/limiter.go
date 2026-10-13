@@ -60,17 +60,22 @@ func (l *Limiter) TokensPerMinute() int {
 // Callers should call Wait immediately before invoking
 // honeycomb.Client.CreateQueryResult.
 func (l *Limiter) Wait(ctx context.Context) error {
+	deadline, hasDeadline := ctx.Deadline()
+	maxWaitBinds := !hasDeadline || time.Until(deadline) > maxWait
+
 	// Create a child context with a hard maxWait deadline so we do not block
 	// indefinitely even if ctx has no deadline.
 	waitCtx, cancel := context.WithTimeout(ctx, maxWait)
 	defer cancel()
 
 	if err := l.rl.Wait(waitCtx); err != nil {
-		if waitCtx.Err() == context.DeadlineExceeded {
+		// rate.Limiter fails fast, without waiting, when the next token is past
+		// the deadline, so waitCtx.Err() alone would miss most maxWait cases.
+		if maxWaitBinds && ctx.Err() == nil {
 			return fmt.Errorf(
-				"timed out waiting for Honeycomb rate limit token after %s "+
-					"(this datasource limits Create Query Result to %d req/min; "+
-					"too many concurrent panels may be competing for capacity)",
+				"no Honeycomb rate limit token available within %s: this datasource "+
+					"limits Create Query Result to %d req/min (Rate Limit setting); "+
+					"raise the setting or reduce the number of panels with distinct queries",
 				maxWait, l.tokensPerMinute)
 		}
 		return fmt.Errorf("rate limiter context cancelled: %w", err)

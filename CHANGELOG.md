@@ -13,6 +13,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 - `ratelimit.New` now takes the tokens-per-minute rate as an argument (values <= 0 use the default of 8).
 
+### Fixed
+- When no rate-limit token was available within 30 s, queries failed with `rate limiter context cancelled: rate: Wait(n=1) would exceed context deadline` instead of the intended explanatory error. `rate.Limiter` returns immediately when the next token is beyond the deadline, so the timeout branch was almost never reached. The error now names the configured rate and the setting that controls it. A genuine cancellation (for example, Grafana's query timeout) still reports as a cancellation.
+
 ## [0.1.4] — 2026-08-07
 
 ### Added

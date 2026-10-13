@@ -2,6 +2,7 @@ package ratelimit_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,5 +110,43 @@ func TestLimiter_BurstCappedAtRate(t *testing.T) {
 	}
 	if lim.Reserve() {
 		t.Error("expected burst of 1 when rate is 1/min, but second Reserve() succeeded")
+	}
+}
+
+func TestLimiter_MaxWaitExceeded_ExplainsSetting(t *testing.T) {
+	// At 1/min the next token is 60 s away, beyond maxWait (30 s), so Wait
+	// should fail immediately with the explanatory error.
+	lim := ratelimit.New(1)
+	lim.Reserve()
+
+	start := time.Now()
+	err := lim.Wait(context.Background())
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected error when next token is beyond maxWait")
+	}
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("Wait should fail fast, took %s", elapsed)
+	}
+	if !strings.Contains(err.Error(), "1 req/min (Rate Limit setting)") {
+		t.Errorf("error should name the configured rate and setting, got: %v", err)
+	}
+}
+
+func TestLimiter_CallerDeadline_ReportsCancellation(t *testing.T) {
+	// A caller deadline shorter than maxWait is the caller's limit, not ours.
+	lim := ratelimit.New(1)
+	lim.Reserve()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := lim.Wait(ctx)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if strings.Contains(err.Error(), "Rate Limit setting") {
+		t.Errorf("caller deadline should not be reported as a rate-limit setting problem, got: %v", err)
 	}
 }

@@ -6,7 +6,7 @@
 
 | Limitation | Detail |
 |------------|--------|
-| Create Query Result rate limit | Hard cap at 10 req/min per API key. The plugin mitigates this with caching and a token bucket, but cold-start dashboards with many unique queries will still queue. |
+| Create Query Result rate limit | Honeycomb limits this endpoint to 10 req/min per team by default. The plugin mitigates this with caching and a token bucket (8/min by default, configurable via `rateLimitPerMinute`), but cold-start dashboards with many unique queries will still queue. |
 | Maximum time range | Honeycomb supports at most 7 days of historical data per query. |
 | Query execution timeout | Honeycomb cancels queries that take longer than 10 seconds. |
 | Compare time offset | The `compare_time_offset_seconds` field is sent in the query spec but Honeycomb's current Create Query Result API does not return comparison data in the result. When this API capability is added by Honeycomb, the plugin can be updated to surface comparison series. |

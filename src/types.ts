@@ -218,7 +218,8 @@ export interface HoneycombDataSourceOptions extends DataSourceJsonData {
 
   /**
    * Maximum Create Query Result calls per minute made by this data source.
-   * Honeycomb caps this endpoint at 10/min per team. Default 8.
+   * Honeycomb's default limit is 10/min per team; set this higher if Honeycomb
+   * has raised yours. Default 8.
    */
   rateLimitPerMinute?: number;
 }
