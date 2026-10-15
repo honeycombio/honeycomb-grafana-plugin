@@ -18,7 +18,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@grafana/eslint-config": "^9.0.0",
-    "@grafana/plugin-e2e": "^3.10.0",
+    "@grafana/plugin-e2e": "^3.15.1",
     "@grafana/tsconfig": "^2.0.1",
     "@playwright/test": "^1.62.0",
     "@swc/core": "^1.7.26",
