@@ -163,7 +163,7 @@ func (q *HoneycombQuery) Validate() error {
 	// Logs queries don't need calculations — the backend supplies COUNT
 	// and the user only chooses filters / attribute columns.
 	if q.QueryType == QueryTypeLogs {
-		return nil
+		return validateFilters(q.Filters)
 	}
 
 	// Traces queries: 'single' needs a trace ID; 'search' just needs the
@@ -171,7 +171,7 @@ func (q *HoneycombQuery) Validate() error {
 	if q.QueryType == QueryTypeTraces {
 		switch q.TracesResultType {
 		case TracesResultTypeSearch:
-			return nil
+			return validateFilters(q.Filters)
 		case TracesResultTypeSingle, "":
 			if strings.TrimSpace(q.TraceID) == "" {
 				return fmt.Errorf("traceId is required when tracesResultType is 'single'")
@@ -182,7 +182,11 @@ func (q *HoneycombQuery) Validate() error {
 		}
 	}
 
-	if q.RawMode || q.QueryType == QueryTypeRaw {
+	// Raw mode sends RawJSON to Honeycomb unchanged. Validate the pasted body
+	// is present and parseable, then fall through to Limit checks. Do not
+	// validate editor Filters / Calculations — ToHoneycombQuery ignores them.
+	isRaw := q.RawMode || q.QueryType == QueryTypeRaw
+	if isRaw {
 		if strings.TrimSpace(q.RawJSON) == "" {
 			return fmt.Errorf("rawJson is required when rawMode is true")
 		}
@@ -198,6 +202,17 @@ func (q *HoneycombQuery) Validate() error {
 	}
 	if q.Limit > 10000 {
 		return fmt.Errorf("limit cannot exceed 10000")
+	}
+	if isRaw {
+		return nil
+	}
+	if err := validateFilters(q.Filters); err != nil {
+		return err
+	}
+	for i, c := range q.Calculations {
+		if err := validateFilters(c.Filters); err != nil {
+			return fmt.Errorf("calculation[%d] op=%q: %w", i, c.Op, err)
+		}
 	}
 	return nil
 }
@@ -240,27 +255,20 @@ func (q *HoneycombQuery) ToHoneycombQuery() (honeycomb.Query, error) {
 			FilterCombination: c.FilterCombination,
 		}
 		if len(c.Filters) > 0 {
-			hc.Filters = make([]honeycomb.Filter, len(c.Filters))
-			for j, f := range c.Filters {
-				hc.Filters[j] = honeycomb.Filter{
-					Column: f.Column,
-					Op:     f.Op,
-					Value:  f.Value,
-				}
+			filters, err := toHoneycombFilters(c.Filters)
+			if err != nil {
+				return honeycomb.Query{}, fmt.Errorf("calculation[%d] op=%q: %w", i, c.Op, err)
 			}
+			hc.Filters = filters
 		}
 		hq.Calculations[i] = hc
 	}
 
-	// Filters
-	hq.Filters = make([]honeycomb.Filter, len(q.Filters))
-	for i, f := range q.Filters {
-		hq.Filters[i] = honeycomb.Filter{
-			Column: f.Column,
-			Op:     f.Op,
-			Value:  f.Value,
-		}
+	filters, err := toHoneycombFilters(q.Filters)
+	if err != nil {
+		return honeycomb.Query{}, err
 	}
+	hq.Filters = filters
 
 	// Orders
 	hq.Orders = make([]honeycomb.Order, len(q.Orders))
