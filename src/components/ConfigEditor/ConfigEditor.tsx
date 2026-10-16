@@ -8,6 +8,7 @@ import {
   DEFAULT_API_URL,
   EU_API_URL,
   DEFAULT_TIME_WINDOW_DAYS,
+  DEFAULT_RATE_LIMIT_PER_MINUTE,
 } from '../../types';
 
 type Props = DataSourcePluginOptionsEditorProps<HoneycombDataSourceOptions, HoneycombSecureJsonData>;
@@ -91,6 +92,17 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
       jsonData: {
         ...jsonData,
         timeWindowDays: Number.isFinite(n) && n >= 0 ? n : undefined,
+      },
+    });
+  };
+
+  const onRateLimitChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const n = parseInt(e.target.value, 10);
+    onOptionsChange({
+      ...options,
+      jsonData: {
+        ...jsonData,
+        rateLimitPerMinute: Number.isFinite(n) && n > 0 ? n : undefined,
       },
     });
   };
@@ -182,11 +194,26 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
             width={12}
           />
         </Field>
+
+        <Field
+          label="Rate Limit (queries/minute)"
+          description="Maximum query executions per minute sent to Honeycomb by this data source. Honeycomb's default limit is 10/min per team; if Honeycomb has raised yours, you can set this higher. Lower it if other clients share the team's budget."
+        >
+          <Input
+            type="number"
+            min={1}
+            placeholder={String(DEFAULT_RATE_LIMIT_PER_MINUTE)}
+            value={jsonData.rateLimitPerMinute ?? ''}
+            onChange={onRateLimitChange}
+            width={12}
+          />
+        </Field>
       </FieldSet>
 
       <Alert title="API Rate Limits" severity="info">
-        Honeycomb limits query execution to <strong>10 requests per minute per team</strong>. This
-        plugin uses multi-level caching and a token-bucket rate limiter to stay within this limit.
+        Honeycomb limits query execution to <strong>10 requests per minute per team</strong> by default
+        (Honeycomb can raise this for your team). This plugin uses multi-level caching and a
+        token-bucket rate limiter to stay within this limit.
         Dashboards with many panels sharing the same query will automatically coalesce requests. See
         the{' '}
         <a

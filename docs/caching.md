@@ -111,17 +111,19 @@ User moves time range to a new day (different snap bucket):
 
 ## Rate limiter details
 
-The token bucket is configured at **8 tokens per 60 seconds** (not 10) to leave headroom for:
+The token bucket defaults to **8 tokens per 60 seconds** (not 10) to leave headroom for:
 - Other clients sharing the same API key (CLI, CI jobs, etc.)
 - Clock skew between the plugin and Honeycomb's window boundaries
 - Burst of a few back-to-back panel loads
 
 **Burst size:** 3 tokens. A dashboard opening cold can immediately submit 3 queries in parallel, then waits ~7.5 s per additional query.
 
+**Configuring the rate:** set **Rate Limit (queries/minute)** under **Advanced** in the data source settings, or `rateLimitPerMinute` in provisioning `jsonData`. The limiter is per data source instance, so several data sources using the same Honeycomb team share that team's budget. Their combined rate should stay below it. Honeycomb's default limit is 10/min per team; if Honeycomb has raised yours, you can set this higher. If the rate is below 3, the burst is reduced to match.
+
 **On 429:** Honeycomb's Query Data API does not include a `Retry-After` header on 429 responses (per their docs). The plugin uses exponential backoff: 10 s → 20 s → 40 s (with 25% jitter), max 3 retries, then returns an error to Grafana.
 
 **On high-429 environments:** If you share an API key with many other clients and see persistent 429s, either:
-1. Create a dedicated Grafana API key (recommended)
+1. Create a dedicated Grafana API key (recommended), or lower `rateLimitPerMinute`
 2. Increase the panel time range to benefit from L3 caching (longer TTL coverage)
 3. Reduce dashboard refresh frequency
 

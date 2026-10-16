@@ -10,6 +10,13 @@
 | Custom API URL | String | — | Shown only if "Custom" is selected. Must be a valid HTTPS URL. |
 | API Key | SecretString | — | Your Honeycomb Configuration API key. Stored encrypted; never returned to the browser. |
 
+### Advanced settings
+
+| Setting | jsonData key | Default | Description |
+|---------|--------------|---------|-------------|
+| Time Window (days) | `timeWindowDays` | 7 | Maximum query time window. Longer ranges are clamped. 0 = unbounded. |
+| Rate Limit (queries/minute) | `rateLimitPerMinute` | 8 | Maximum Create Query Result calls per minute from this data source. Honeycomb's default limit is 10/min per team; if Honeycomb has raised yours, you can set this higher. Lower it if other clients share the budget. |
+
 ### API key requirements
 
 The API key needs these Honeycomb permissions:

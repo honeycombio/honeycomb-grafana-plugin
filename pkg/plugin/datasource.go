@@ -50,6 +50,10 @@ type datasourceSettings struct {
 	CacheTTLL1Minutes int `json:"cacheTtlL1Minutes"`
 	CacheTTLL2Minutes int `json:"cacheTtlL2Minutes"`
 	CacheTTLL3Minutes int `json:"cacheTtlL3Minutes"`
+
+	// RateLimitPerMinute caps Create Query Result calls made by this instance.
+	// 0 = ratelimit.DefaultTokensPerMinute.
+	RateLimitPerMinute int `json:"rateLimitPerMinute"`
 }
 
 // defaultTimeWindowDays mirrors the frontend default (DEFAULT_TIME_WINDOW_DAYS).
@@ -106,6 +110,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 		"team", dsSettings.Team,
 		"environment", dsSettings.Environment,
 		"timeWindowDays", dsSettings.TimeWindowDays,
+		"rateLimitPerMinute", dsSettings.RateLimitPerMinute,
 	)
 
 	ttlL1 := cache.DefaultTTLQueryID
@@ -126,7 +131,7 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 		settings: dsSettings,
 		client:   client,
 		cache:    cache.New(5 * time.Minute), // janitor interval
-		limiter:  ratelimit.New(),
+		limiter:  ratelimit.New(dsSettings.RateLimitPerMinute),
 		logger:   logger,
 		ttlL1:    ttlL1,
 		ttlL2:    ttlL2,

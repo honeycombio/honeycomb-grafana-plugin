@@ -215,6 +215,13 @@ export interface HoneycombDataSourceOptions extends DataSourceJsonData {
 
   /** L3 cache TTL in minutes (completed query results). Default: 120. */
   cacheTtlL3Minutes?: number;
+
+  /**
+   * Maximum Create Query Result calls per minute made by this data source.
+   * Honeycomb's default limit is 10/min per team; set this higher if Honeycomb
+   * has raised yours. Default 8.
+   */
+  rateLimitPerMinute?: number;
 }
 
 /**
@@ -315,6 +322,8 @@ export const QUERY_MODE_OPTIONS: Array<SelectableValue<QueryMode>> = [
 export const DEFAULT_API_URL = 'https://api.honeycomb.io';
 export const EU_API_URL = 'https://api.eu1.honeycomb.io';
 export const DEFAULT_TIME_WINDOW_DAYS = 7;
+/** Mirrors ratelimit.DefaultTokensPerMinute in the backend. */
+export const DEFAULT_RATE_LIMIT_PER_MINUTE = 8;
 
 /**
  * Honeycomb's allowed compare_time_offset_seconds values. The API rejects
