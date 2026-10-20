@@ -6,7 +6,7 @@ Thank you for contributing! This guide covers everything you need to set up a lo
 
 | Tool | Minimum version | Notes |
 |------|----------------|-------|
-| Go   | 1.22           | `go version` |
+| Go   | 1.27.3         | `go version` |
 | Node | 20             | `node --version` |
 | npm  | 10             | bundled with Node 20 |
 | Mage | 1.15           | `go install github.com/magefile/mage@latest` |

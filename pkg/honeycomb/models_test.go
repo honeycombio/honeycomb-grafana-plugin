@@ -33,8 +33,8 @@ func TestFlexibleTime_UnmarshalJSON(t *testing.T) {
 			if err := json.Unmarshal([]byte(tt.in), &ft); err != nil {
 				t.Fatalf("unmarshal %s: %v", tt.in, err)
 			}
-			if !ft.Time.Equal(tt.want) {
-				t.Errorf("parsed %s as %s, want %s", tt.in, ft.Time.UTC(), tt.want)
+			if !ft.Equal(tt.want) {
+				t.Errorf("parsed %s as %s, want %s", tt.in, ft.UTC(), tt.want)
 			}
 		})
 	}
