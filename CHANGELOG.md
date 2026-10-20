@@ -7,6 +7,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Security
+- Build with Go 1.27.3, which rejects certificate chains through the eight compromised eMudhra intermediate CAs (crypto/x509, on every platform). Earlier releases still trust them.
+
 ## [0.1.6] — 2026-10-19
 
 ### Added
