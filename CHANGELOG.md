@@ -8,6 +8,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Security
+- Update Go dependencies with known vulnerabilities: `google.golang.org/grpc` 1.81.1 → 1.83.2 (GO-2026-6061, GO-2026-6348, GO-2026-6443), `go.opentelemetry.io/otel` 1.43.0 → 1.45.0 (GO-2026-5158, GO-2026-6505) and `github.com/klauspost/compress` 1.18.4 → 1.18.7 (GO-2026-5841, GO-2026-6441). `govulncheck ./...` now reports none.
+- Apply non-breaking `npm audit fix` updates to the frontend dependency tree.
 - Build with Go 1.27.3, which rejects certificate chains through the eight compromised eMudhra intermediate CAs (crypto/x509, on every platform). Earlier releases still trust them.
 
 ## [0.1.6] — 2026-10-19
