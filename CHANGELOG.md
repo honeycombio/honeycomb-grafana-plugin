@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-10-20
+
 ### Security
 - Build with Go 1.27.3, which rejects certificate chains through the eight compromised eMudhra intermediate CAs (crypto/x509, on every platform). Earlier releases still trust them.
 
@@ -83,7 +85,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Example provisioning configuration and example dashboard.
 - Apache 2.0 license.
 
-[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.8
 [0.1.6]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.6
 [0.1.4]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.4
 [0.1.3]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.3
