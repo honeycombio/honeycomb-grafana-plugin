@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.10] — 2026-10-22
+
 ### Changed
 - The **API Rate Limits** notice in the data source settings now says "Honeycomb support may be able to raise this for your team (contact your account team)" instead of "Honeycomb can raise this for your team".
 
@@ -90,7 +92,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Example provisioning configuration and example dashboard.
 - Apache 2.0 license.
 
-[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.10
 [0.1.8]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.8
 [0.1.6]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.6
 [0.1.4]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.4
