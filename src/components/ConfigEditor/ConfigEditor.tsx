@@ -212,8 +212,8 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
 
       <Alert title="API Rate Limits" severity="info">
         Honeycomb limits query execution to <strong>10 requests per minute per team</strong> by default.
-        Honeycomb support may be able to raise this for your team (contact your account team). This plugin uses multi-level caching and a
-        token-bucket rate limiter to stay within this limit.
+        Honeycomb support may be able to raise this for your team (contact your account team).
+        This plugin uses multi-level caching and a token-bucket rate limiter to stay within this limit.
         Dashboards with many panels sharing the same query will automatically coalesce requests. See
         the{' '}
         <a

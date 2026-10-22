@@ -8,7 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Changed
-- The **API Rate Limits** notice in the data source settings now says "Honeycomb may be able to raise this for your team" instead of "Honeycomb can raise this for your team".
+- The **API Rate Limits** notice in the data source settings now says "Honeycomb support may be able to raise this for your team (contact your account team)" instead of "Honeycomb can raise this for your team".
 
 ## [0.1.8] — 2026-10-20
 
