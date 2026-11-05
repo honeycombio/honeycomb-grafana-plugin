@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- `COUNT_DATAPOINTS` and `HISTOGRAM_COUNT` calculations for Honeycomb time series metrics datasets.
+- Time series metrics datasets are marked "(metrics)" in the dataset picker. The calculation list only offers ops Honeycomb accepts for the selected dataset kind (`COUNT`, `CONCURRENCY` and `RATE_*` are hidden on metrics datasets; `COUNT_DATAPOINTS` and `HISTOGRAM_COUNT` are hidden on event datasets), and `HISTOGRAM_COUNT` only offers histogram columns, since Honeycomb returns a 400 for any other column type. Switching dataset swaps `COUNT` and `COUNT_DATAPOINTS`.
+
 ## [0.1.10] — 2026-10-22
 
 ### Changed
