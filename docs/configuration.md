@@ -91,6 +91,10 @@ Set `HONEYCOMB_API_KEY` in the Grafana server environment.
 | P50, P75, P90, P95, P99, P99.9 | Yes | Percentiles |
 | HEATMAP | Yes | Distribution heatmap |
 | RATE_AVG, RATE_SUM, RATE_MAX | Yes | Rate calculations |
+| COUNT_DATAPOINTS | Optional | Metrics datasets only: datapoints ingested (all metrics, or one metric when a column is set) |
+| HISTOGRAM_COUNT | Yes | Metrics datasets only: observations recorded in a histogram metric |
+
+On time series metrics datasets, use `COUNT_DATAPOINTS` instead of a bare `COUNT`; `CONCURRENCY` and `RATE_*` are not available there.
 
 ### Filter operators
 

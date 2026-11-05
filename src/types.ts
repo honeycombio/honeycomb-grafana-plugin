@@ -47,7 +47,9 @@ export type CalculationOp =
   | 'P999'
   | 'RATE_AVG'
   | 'RATE_SUM'
-  | 'RATE_MAX';
+  | 'RATE_MAX'
+  | 'COUNT_DATAPOINTS'
+  | 'HISTOGRAM_COUNT';
 
 export type FilterOp =
   | '='
@@ -242,12 +244,14 @@ export interface DatasetMeta {
   slug: string;
   description?: string;
   created_at?: string;
+  /** 'metrics' for time series metrics datasets; absent for event datasets. */
+  dataset_type?: 'metrics';
 }
 
 export interface ColumnMeta {
   id: string;
   key_name: string;
-  type: 'string' | 'float' | 'integer' | 'boolean';
+  type: 'string' | 'float' | 'integer' | 'boolean' | 'histogram';
   hidden: boolean;
   description?: string;
 }
@@ -274,6 +278,16 @@ export const CALCULATION_OPS: Array<SelectableValue<CalculationOp>> = [
   { label: 'RATE_AVG', value: 'RATE_AVG' },
   { label: 'RATE_SUM', value: 'RATE_SUM' },
   { label: 'RATE_MAX', value: 'RATE_MAX' },
+  {
+    label: 'COUNT_DATAPOINTS',
+    value: 'COUNT_DATAPOINTS',
+    description: 'Metrics datasets only: datapoints ingested (all metrics, or one metric if a column is set)',
+  },
+  {
+    label: 'HISTOGRAM_COUNT',
+    value: 'HISTOGRAM_COUNT',
+    description: 'Metrics datasets only: observations recorded in a histogram metric',
+  },
   { label: 'P0.01', value: 'P001' },
   { label: 'P0.1', value: 'P01' },
   { label: 'P5', value: 'P05' },
@@ -288,7 +302,34 @@ export const COLUMN_REQUIRED_OPS = new Set<CalculationOp>([
   'SUM', 'AVG', 'COUNT_DISTINCT', 'HEATMAP', 'MAX', 'MIN',
   'P001', 'P01', 'P05', 'P10', 'P20', 'P25', 'P50', 'P75',
   'P80', 'P90', 'P95', 'P99', 'P999', 'RATE_AVG', 'RATE_SUM', 'RATE_MAX',
+  'HISTOGRAM_COUNT',
 ]);
+
+/** Operations Honeycomb accepts only on time series metrics datasets. */
+export const METRICS_ONLY_OPS = new Set<CalculationOp>(['COUNT_DATAPOINTS', 'HISTOGRAM_COUNT']);
+
+/** Operations Honeycomb rejects on time series metrics datasets. */
+export const EVENTS_ONLY_OPS = new Set<CalculationOp>(['COUNT', 'CONCURRENCY', 'RATE_AVG', 'RATE_SUM', 'RATE_MAX']);
+
+/** What is known about the selected dataset; 'unknown' covers __all__, template variables and unloaded lists. */
+export type DatasetKind = 'metrics' | 'events' | 'unknown';
+
+/**
+ * calculationOpsFor returns the dropdown options valid for a dataset kind.
+ * Ops in `keep` are always included so an existing selection stays visible.
+ */
+export function calculationOpsFor(kind: DatasetKind, keep: CalculationOp[] = []): Array<SelectableValue<CalculationOp>> {
+  return CALCULATION_OPS.filter((o) => {
+    const op = o.value as CalculationOp;
+    if (keep.includes(op) || kind === 'unknown') {
+      return true;
+    }
+    return kind === 'metrics' ? !EVENTS_ONLY_OPS.has(op) : !METRICS_ONLY_OPS.has(op);
+  });
+}
+
+/** Operations that accept a column parameter but do not require one. */
+export const COLUMN_OPTIONAL_OPS = new Set<CalculationOp>(['COUNT_DATAPOINTS']);
 
 export const FILTER_OPS: Array<SelectableValue<FilterOp>> = [
   { label: '=', value: '=' },

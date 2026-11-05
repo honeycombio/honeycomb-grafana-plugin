@@ -209,6 +209,9 @@ type DatasetMeta struct {
 	Slug        string    `json:"slug"`
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
+	// DatasetType is "metrics" for time series metrics datasets and empty for
+	// ordinary event datasets.
+	DatasetType string `json:"dataset_type,omitempty"`
 }
 
 // ColumnMeta is metadata about a column within a dataset.

@@ -18,8 +18,11 @@ import { css } from '@emotion/css';
 import { HoneycombDataSource } from '../../datasource';
 import {
   ALL_DATASETS_SLUG,
+  CalculationOp,
   ColumnMeta,
   COMPARE_TIME_OFFSET_OPTIONS,
+  DatasetKind,
+  DatasetMeta,
   HoneycombDataSourceOptions,
   HoneycombQuery,
   QUERY_MODE_OPTIONS,
@@ -88,6 +91,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery, data }: P
   const allDatasetsOption: SelectableValue<string> = { label: 'All Datasets', value: ALL_DATASETS_SLUG, description: 'Query across all datasets in the environment' };
 
   const [datasets, setDatasets] = useState<Array<SelectableValue<string>>>([allDatasetsOption]);
+  const [datasetMetas, setDatasetMetas] = useState<DatasetMeta[]>([]);
   const [columns, setColumns] = useState<ColumnMeta[]>([]);
   // Start in the loading state so the first paint shows a spinner without
   // calling setState synchronously inside the effect body.
@@ -103,7 +107,15 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery, data }: P
         if (cancelled) {
           return;
         }
-        setDatasets([allDatasetsOption, ...ds.map((d) => ({ label: d.name, value: d.slug, description: d.description }))]);
+        setDatasetMetas(ds);
+        setDatasets([
+          allDatasetsOption,
+          ...ds.map((d) => ({
+            label: d.dataset_type === 'metrics' ? `${d.name} (metrics)` : d.name,
+            value: d.slug,
+            description: d.description,
+          })),
+        ]);
       })
       .catch(() => {
         if (!cancelled) {
@@ -163,6 +175,26 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery, data }: P
     [q, onChange]
   );
 
+  const datasetMeta = datasetMetas.find((d) => d.slug === q.dataset);
+  const datasetKind: DatasetKind = !datasetMeta ? 'unknown' : datasetMeta.dataset_type === 'metrics' ? 'metrics' : 'events';
+
+  // Picking a dataset of a different kind swaps the default count between
+  // COUNT (events) and COUNT_DATAPOINTS (metrics), which Honeycomb rejects on
+  // the other kind. Other ops are left for the user to change.
+  const selectDataset = (slug: string) => {
+    const meta = datasetMetas.find((d) => d.slug === slug);
+    if (!meta) {
+      update({ dataset: slug });
+      return;
+    }
+    const [from, to]: CalculationOp[] =
+      meta.dataset_type === 'metrics' ? ['COUNT', 'COUNT_DATAPOINTS'] : ['COUNT_DATAPOINTS', 'COUNT'];
+    update({
+      dataset: slug,
+      calculations: (q.calculations ?? []).map((c) => (c.op === from && !c.column ? { ...c, op: to } : c)),
+    });
+  };
+
   const handleRunQuery = () => onRunQuery();
 
   const handleOpenInHoneycomb = () => {
@@ -199,6 +231,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery, data }: P
       label: c.key_name,
       value: c.key_name,
       description: c.type,
+      type: c.type,
     }));
 
   // Resolve effective queryType: queryType field takes precedence, but legacy
@@ -234,7 +267,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery, data }: P
           <Select
             options={datasets}
             value={q.dataset}
-            onChange={(v) => update({ dataset: v.value ?? '' })}
+            onChange={(v) => selectDataset(v.value ?? '')}
             allowCustomValue
             placeholder="Choose dataset"
             width={32}
@@ -333,6 +366,7 @@ export function QueryEditor({ datasource, query, onChange, onRunQuery, data }: P
           calculations={q.calculations ?? []}
           columnOptions={columnOptions}
           loadingColumns={loadingColumns}
+          datasetKind={datasetKind}
           onChange={(calculations) => update({ calculations })}
         />
       </Section>

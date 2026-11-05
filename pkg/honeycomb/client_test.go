@@ -213,6 +213,7 @@ func TestClient_ListDatasets(t *testing.T) {
 		json.NewEncoder(w).Encode([]honeycomb.DatasetMeta{
 			{Name: "Production", Slug: "production"},
 			{Name: "Staging", Slug: "staging"},
+			{Name: "Metrics", Slug: "metrics", DatasetType: "metrics"},
 		})
 	})
 
@@ -220,11 +221,14 @@ func TestClient_ListDatasets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(datasets) != 2 {
-		t.Errorf("expected 2 datasets, got %d", len(datasets))
+	if len(datasets) != 3 {
+		t.Errorf("expected 3 datasets, got %d", len(datasets))
 	}
 	if datasets[0].Slug != "production" {
 		t.Errorf("expected slug 'production', got %s", datasets[0].Slug)
+	}
+	if datasets[0].DatasetType != "" || datasets[2].DatasetType != "metrics" {
+		t.Errorf("dataset_type: got %q and %q, want \"\" and \"metrics\"", datasets[0].DatasetType, datasets[2].DatasetType)
 	}
 }
 
