@@ -155,4 +155,4 @@ The plugin works best for:
 The plugin works least well for:
 - **Extremely high refresh rates** (< 60 s) — the L2/L3 cache still helps, but cold-start latency is 1–3 s per unique query
 - **Large number of distinct queries** (> 8 unique queries/minute on a cold dashboard) — token bucket queuing applies
-- **Real-time streaming** — not supported; polling max 30 s per query
+- **Real-time streaming** — not supported; polling max 10 minutes per query

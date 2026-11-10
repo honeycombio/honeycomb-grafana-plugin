@@ -26,7 +26,12 @@ const (
 	// Polling config for Get Query Result.
 	pollInitialInterval = 200 * time.Millisecond
 	pollMaxInterval     = 1 * time.Second
-	pollMaxDuration     = 30 * time.Second
+	// Honeycomb's query queue starts a run that misses the result cache at the
+	// team's query rate, so a run can report complete: false for minutes before
+	// it executes. The deadline still bounds callers whose context never ends,
+	// such as an API client with no timeout: Grafana sets no deadline on
+	// dashboard queries.
+	pollMaxDuration = 10 * time.Minute
 
 	// Retry config for non-rate-limited endpoints (Create Query, Get Query Result, metadata).
 	maxRetries        = 3
