@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.12] — 2026-11-10
+
 ### Changed
 - The plugin now polls a query result for up to 10 minutes instead of 30 s before it reports a timeout. Honeycomb's query queue can hold a run with `complete: false` for minutes before it executes, and the 30 s limit failed panels that were only waiting. Alert and recording rule evaluations still end at Grafana's `[unified_alerting] evaluation_timeout` (30 s by default).
 
@@ -101,7 +103,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Example provisioning configuration and example dashboard.
 - Apache 2.0 license.
 
-[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.11...HEAD
+[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.12...HEAD
+[0.1.12]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.12
 [0.1.11]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.11
 [0.1.10]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.10
 [0.1.8]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.8
