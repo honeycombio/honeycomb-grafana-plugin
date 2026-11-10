@@ -32,7 +32,7 @@
 | Calculated fields | Derived column expressions (`calculated_fields`) are not in the visual editor. Use raw JSON mode. |
 | HEATMAP visualization | While HEATMAP is a valid calculation op, mapping it to Grafana's heatmap panel type requires custom frame structure. Currently returns raw values. |
 | Distributed cache | Cache is not shared across Grafana replicas. Redis-backed cache would require an operational dependency. |
-| Streaming results | Honeycomb results are polled (max 30 s); streaming is not supported. |
+| Streaming results | Honeycomb results are polled (max 10 minutes); streaming is not supported. |
 
 ### Platform limitations
 
