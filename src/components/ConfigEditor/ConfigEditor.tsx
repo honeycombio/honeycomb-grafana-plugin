@@ -8,7 +8,6 @@ import {
   DEFAULT_API_URL,
   EU_API_URL,
   DEFAULT_TIME_WINDOW_DAYS,
-  DEFAULT_RATE_LIMIT_PER_MINUTE,
 } from '../../types';
 
 type Props = DataSourcePluginOptionsEditorProps<HoneycombDataSourceOptions, HoneycombSecureJsonData>;
@@ -92,17 +91,6 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
       jsonData: {
         ...jsonData,
         timeWindowDays: Number.isFinite(n) && n >= 0 ? n : undefined,
-      },
-    });
-  };
-
-  const onRateLimitChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const n = parseInt(e.target.value, 10);
-    onOptionsChange({
-      ...options,
-      jsonData: {
-        ...jsonData,
-        rateLimitPerMinute: Number.isFinite(n) && n > 0 ? n : undefined,
       },
     });
   };
@@ -194,27 +182,14 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
             width={12}
           />
         </Field>
-
-        <Field
-          label="Rate Limit (queries/minute)"
-          description="Maximum query executions per minute sent to Honeycomb by this data source. Honeycomb's default limit is 10/min per team; if Honeycomb has raised yours, you can set this higher. Lower it if other clients share the team's budget."
-        >
-          <Input
-            type="number"
-            min={1}
-            placeholder={String(DEFAULT_RATE_LIMIT_PER_MINUTE)}
-            value={jsonData.rateLimitPerMinute ?? ''}
-            onChange={onRateLimitChange}
-            width={12}
-          />
-        </Field>
       </FieldSet>
 
       <Alert title="API Rate Limits" severity="info">
-        Honeycomb limits query execution to <strong>10 requests per minute per team</strong> by default.
-        Honeycomb support may be able to raise this for your team (contact your account team).
-        This plugin uses multi-level caching and a token-bucket rate limiter to stay within this limit.
-        Dashboards with many panels sharing the same query will automatically coalesce requests. See
+        Honeycomb runs queries at <strong>10 per minute per team</strong> by default. Queries beyond that
+        rate wait in Honeycomb&apos;s query queue, so a cold dashboard with many distinct queries can take
+        minutes to fill in. Honeycomb support may be able to raise the rate for your team (contact your
+        account team). This plugin caches results at several levels, and panels that share the same query
+        automatically coalesce requests. See
         the{' '}
         <a
           href="https://github.com/honeycombio/honeycomb-grafana-plugin/blob/main/docs/caching.md"
@@ -243,7 +218,7 @@ export function ConfigEditor({ options, onOptionsChange }: Props) {
 
         <Field
           label="L2 TTL — Query Result ID cache (minutes)"
-          description="How long to cache the query_result_id for a submitted query. Prevents re-submitting to the rate-limited Create Query Result endpoint (10 req/min per team). Higher values reduce rate-limited calls but may return staler result pointers."
+          description="How long to cache the query_result_id for a submitted query. Prevents re-submitting a query run to Create Query Result, where each run counts against your team's query rate (10/min by default). Higher values mean fewer new runs but may return staler result pointers."
         >
           <Input
             type="number"

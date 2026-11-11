@@ -3,8 +3,9 @@
 // Architecture summary:
 //   - One Datasource instance per configured data source in Grafana.
 //   - All Honeycomb API calls go through the backend; no secrets reach the browser.
-//   - A three-level TTL cache + singleflight protects the 10 req/min limit on
-//     Create Query Result (see ADR-002 and ADR-003).
+//   - A three-level TTL cache + singleflight keeps repeated panel queries from
+//     starting new runs on Create Query Result (see ADR-002). Honeycomb's
+//     query queue paces the runs that do start.
 //   - Frames are annotated with deep links back to the Honeycomb UI (see ADR-004).
 package plugin
 
@@ -22,7 +23,6 @@ import (
 	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/cache"
 	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/fingerprint"
 	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/honeycomb"
-	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/ratelimit"
 	"github.com/honeycombio/honeycomb-grafana-plugin/pkg/transform"
 )
 
@@ -51,9 +51,8 @@ type datasourceSettings struct {
 	CacheTTLL2Minutes int `json:"cacheTtlL2Minutes"`
 	CacheTTLL3Minutes int `json:"cacheTtlL3Minutes"`
 
-	// RateLimitPerMinute caps Create Query Result calls made by this instance.
-	// 0 = ratelimit.DefaultTokensPerMinute.
-	RateLimitPerMinute int `json:"rateLimitPerMinute"`
+	// rateLimitPerMinute is no longer read. Saved and provisioned settings may
+	// still contain it; json.Unmarshal ignores it.
 }
 
 // defaultTimeWindowDays mirrors the frontend default (DEFAULT_TIME_WINDOW_DAYS).
@@ -68,7 +67,6 @@ type Datasource struct {
 	client   *honeycomb.Client
 	cache    *cache.Cache
 	sfGroup  cache.Group
-	limiter  *ratelimit.Limiter
 	logger   log.Logger
 
 	ttlL1 time.Duration
@@ -78,7 +76,7 @@ type Datasource struct {
 
 // NewDatasource is called by Grafana whenever a data source instance is
 // created or updated. It initializes the HTTP client from the (decrypted)
-// secure settings and allocates per-instance cache and rate limiter.
+// secure settings and allocates the per-instance cache.
 func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSettings) (instancemgmt.Instance, error) {
 	logger := log.DefaultLogger.With("datasource_uid", settings.UID, "datasource_name", settings.Name)
 
@@ -110,7 +108,6 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 		"team", dsSettings.Team,
 		"environment", dsSettings.Environment,
 		"timeWindowDays", dsSettings.TimeWindowDays,
-		"rateLimitPerMinute", dsSettings.RateLimitPerMinute,
 	)
 
 	ttlL1 := cache.DefaultTTLQueryID
@@ -131,7 +128,6 @@ func NewDatasource(ctx context.Context, settings backend.DataSourceInstanceSetti
 		settings: dsSettings,
 		client:   client,
 		cache:    cache.New(5 * time.Minute), // janitor interval
-		limiter:  ratelimit.New(dsSettings.RateLimitPerMinute),
 		logger:   logger,
 		ttlL1:    ttlL1,
 		ttlL2:    ttlL2,
@@ -283,8 +279,8 @@ func (d *Datasource) runQuery(ctx context.Context, gq backend.DataQuery) backend
 //
 //	L3 hit  → return cached completed result immediately
 //	L2 hit  → poll Get Query Result (already have result_id)
-//	L1 hit  → have query_id, submit Create Query Result (rate-limited), then poll
-//	cold    → Create Query, Create Query Result (rate-limited), then poll
+//	L1 hit  → have query_id, submit Create Query Result, then poll
+//	cold    → Create Query, Create Query Result, then poll
 func (d *Datasource) executeQuery(
 	ctx context.Context,
 	pq HoneycombQuery,
@@ -349,17 +345,13 @@ func (d *Datasource) getOrCreateQueryID(ctx context.Context, dataset string, hq 
 }
 
 // getOrCreateQueryResultID returns a cached query_result_id or submits a new
-// Create Query Result call (rate-limited via the token bucket).
+// Create Query Result call. Honeycomb's query queue starts the run at the
+// team's query rate.
 func (d *Datasource) getOrCreateQueryResultID(ctx context.Context, dataset, queryID string, pq HoneycombQuery, execKey string) (string, error) {
 	cacheKey := execKey + ":resultid"
 	if v, ok := d.cache.Get(cacheKey); ok {
 		d.logger.Debug("L2 cache hit (query_result_id)", "dataset", dataset, "exec_key", execKey[:8])
 		return v.(string), nil
-	}
-
-	// Acquire a rate-limit token before calling Create Query Result.
-	if err := d.limiter.Wait(ctx); err != nil {
-		return "", fmt.Errorf("rate limit: %w", err)
 	}
 
 	req := honeycomb.QueryResultRequest{
@@ -377,9 +369,8 @@ func (d *Datasource) getOrCreateQueryResultID(ctx context.Context, dataset, quer
 		if honeycomb.IsRateLimit(err) {
 			// On 429 from Create Query Result (no Retry-After per Honeycomb docs),
 			// return a user-visible error. The next dashboard refresh will hit L1
-			// (query_id still cached) and try again with a fresh token.
-			return "", fmt.Errorf("honeycomb rate limit exceeded (Create Query Result); "+
-				"too many concurrent queries — check ADR-003 for mitigation options: %w", err)
+			// (query_id still cached) and try again.
+			return "", fmt.Errorf("honeycomb rate limit exceeded (Create Query Result): %w", err)
 		}
 		return "", err
 	}

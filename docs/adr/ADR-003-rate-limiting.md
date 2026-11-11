@@ -1,7 +1,9 @@
 # ADR-003: Rate Limiting Strategy
 
-**Status:** Accepted  
+**Status:** Superseded  
 **Date:** 2025-01-15
+
+> **Superseded:** Honeycomb's query queue now starts query runs at the team's query rate, so the plugin no longer runs its own token bucket. The plugin removed `pkg/ratelimit` and ignores the `rateLimitPerMinute` setting. This record describes the earlier design.
 
 ## Context
 

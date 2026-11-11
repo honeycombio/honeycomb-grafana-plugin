@@ -139,7 +139,7 @@ This plugin supports Grafana Alerting. To create an alert:
 2. Define an alert condition based on the query result.
 3. Grafana evaluates the alert on the configured schedule, using the same backend plugin code path as panel queries (including caching).
 
-**Note on caching and alerting:** The token bucket and cache protect both panel queries and alert evaluations. If alert evaluations are frequent (e.g., every 1 minute) and exceed the token budget, alert evaluations may queue. Space alert evaluation intervals to account for the 10 req/min limit.
+**Note on caching and alerting:** The cache serves both panel queries and alert evaluations. An alert query that misses the cache can wait in Honeycomb's query queue, and Grafana fails an evaluation that takes longer than `[unified_alerting] evaluation_timeout` (30 s by default). Space alert evaluation intervals to account for your team's query rate (10 per minute by default).
 
 ---
 
@@ -154,5 +154,5 @@ The plugin works best for:
 
 The plugin works least well for:
 - **Extremely high refresh rates** (< 60 s) — the L2/L3 cache still helps, but cold-start latency is 1–3 s per unique query
-- **Large number of distinct queries** (> 8 unique queries/minute on a cold dashboard) — token bucket queuing applies
+- **Large number of distinct queries** (more than 10 unique queries/minute on a cold dashboard) — later queries wait in Honeycomb's query queue
 - **Real-time streaming** — not supported; polling max 10 minutes per query

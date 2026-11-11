@@ -100,10 +100,9 @@ func (c *Client) CreateQuery(ctx context.Context, dataset string, q Query) (stri
 // CreateQueryResult submits a query for execution and returns the query
 // result ID and the initial links (which include the Honeycomb UI URL).
 //
-// IMPORTANT: This call is limited to 10 requests/minute on Honeycomb's side.
-// Callers MUST acquire a rate-limit token before calling this method.
-// No automatic retry is applied here; the token bucket and caller-level
-// backoff handle pacing.
+// Honeycomb's query queue starts a run that misses its result cache at the
+// team's query rate, so the run may report complete: false for some time.
+// No automatic retry is applied here.
 func (c *Client) CreateQueryResult(ctx context.Context, dataset string, req QueryResultRequest) (*QueryResultCreateResponse, error) {
 	path := fmt.Sprintf("/1/query_results/%s", url.PathEscape(dataset))
 	var resp QueryResultCreateResponse

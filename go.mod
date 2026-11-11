@@ -5,7 +5,6 @@ go 1.27.3
 require (
 	github.com/grafana/grafana-plugin-sdk-go v0.292.0
 	github.com/magefile/mage v1.17.2
-	golang.org/x/time v0.5.0
 )
 
 require (

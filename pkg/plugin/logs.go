@@ -18,7 +18,7 @@ import (
 // `timestamp` (which Honeycomb rejects with 422 "unknown column or derived
 // column timestamp").
 //
-// This shares the same cache and rate-limit machinery as the standard
+// This shares the same cache machinery as the standard
 // metrics path because it ultimately hits the same /1/queries +
 // /1/query_results endpoints.
 func (d *Datasource) runLogsQuery(ctx context.Context, gq backend.DataQuery, pq HoneycombQuery) backend.DataResponse {
@@ -91,7 +91,7 @@ func defaultLogAttributes() []string {
 }
 
 // executeEventsQuery is a small wrapper around the existing three-level
-// cache + rate-limit flow used by runQuery for metrics queries. It exists
+// cache flow used by runQuery for metrics queries. It exists
 // so logs/traces can reuse the same infrastructure without duplicating it.
 func (d *Datasource) executeEventsQuery(
 	ctx context.Context,
