@@ -15,7 +15,8 @@
 | Setting | jsonData key | Default | Description |
 |---------|--------------|---------|-------------|
 | Time Window (days) | `timeWindowDays` | 7 | Maximum query time window. Longer ranges are clamped. 0 = unbounded. |
-| Rate Limit (queries/minute) | `rateLimitPerMinute` | 8 | Maximum Create Query Result calls per minute from this data source. Honeycomb's default limit is 10/min per team; if Honeycomb has raised yours, you can set this higher. Lower it if other clients share the budget. |
+
+Earlier versions had a **Rate Limit (queries/minute)** setting (`rateLimitPerMinute`). The plugin now ignores it, because Honeycomb's query queue paces query runs. Data sources and provisioning files that still set it keep working; you can delete the key.
 
 ### API key requirements
 

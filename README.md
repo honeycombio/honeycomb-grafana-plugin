@@ -16,8 +16,7 @@ A production-grade Grafana backend data source plugin for [Honeycomb](https://ww
 - **Logs mode** — Honeycomb events rendered as `FrameTypeLogLines` for the Grafana Logs panel and Explore view
 - **Traces mode** — fetch a trace by ID (full span tree → Grafana trace view) or search traces by attribute filters
 - **First-class high-cardinality group-by** — each breakdown combination becomes a separate Grafana series; series are labeled, ordered, and limited with guardrails
-- **Aggressive caching** — three-level cache (query_id → result_id → completed result) protects against Honeycomb's 10 req/min Create Query Result limit
-- **Token-bucket rate limiter** — 8 tokens/60 s by default (configurable per data source) with automatic exponential backoff on 429
+- **Aggressive caching** — three-level cache (query_id → result_id → completed result) keeps refreshes from using up your team's query rate (10 per minute by default)
 - **Singleflight deduplication** — concurrent panels requesting identical data collapse into a single Honeycomb API call
 - **Deep links** — every metric field carries a DataLink to the matching Honeycomb query result; `trace.trace_id` columns get a per-row link straight to the trace in Honeycomb
 - **Dashboard variables** — list datasets or columns; use the result as template variables across all panels
@@ -145,7 +144,7 @@ Honeycomb limits Create Query Result to **10 requests/minute per team**. The plu
 
 All TTLs are configurable in the data source settings.
 
-On a steady-state dashboard, panel refreshes almost always hit L3 (in-memory, microsecond latency). Only cold cache loads or new time ranges hit the rate-limited Create Query Result endpoint.
+On a steady-state dashboard, panel refreshes almost always hit L3 (in-memory, microsecond latency). Only cold cache loads or new time ranges start a new query run in Honeycomb.
 
 See [ADR-002](docs/adr/ADR-002-caching-strategy.md) for full details.
 
@@ -208,7 +207,7 @@ See the [Architecture Decision Records](docs/adr/) for the major design decision
 
 - [ADR-001](docs/adr/ADR-001-backend-plugin.md) — Why a backend plugin
 - [ADR-002](docs/adr/ADR-002-caching-strategy.md) — Multi-level caching strategy
-- [ADR-003](docs/adr/ADR-003-rate-limiting.md) — Rate limiting strategy
+- [ADR-003](docs/adr/ADR-003-rate-limiting.md) — Rate limiting strategy (superseded)
 - [ADR-004](docs/adr/ADR-004-deep-links.md) — Deep link and exemplar strategy
 
 ---

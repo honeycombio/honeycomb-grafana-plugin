@@ -18,9 +18,8 @@ datasources:
       apiUrl: https://api.honeycomb.io  # Use https://api.eu1.honeycomb.io for EU accounts
       # Cache TTLs (in minutes). Defaults shown below — adjust to taste.
       # cacheTtlL1Minutes: 30   # L1: query shape → query_id
-      # cacheTtlL2Minutes: 10   # L2: execution key → query_result_id (rate-limited endpoint)
+      # cacheTtlL2Minutes: 10   # L2: execution key → query_result_id (avoids starting new query runs)
       # cacheTtlL3Minutes: 120  # L3: completed results (higher = fewer API calls, staler data)
-      # rateLimitPerMinute: 8   # Create Query Result calls/min (Honeycomb default limit: 10/min per team; set higher if yours was raised)
     secureJsonData:
       apiKey: "${HONEYCOMB_API_KEY}"  # Set via environment variable; never hardcode
     version: 1

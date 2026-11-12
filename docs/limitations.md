@@ -6,11 +6,11 @@
 
 | Limitation | Detail |
 |------------|--------|
-| Create Query Result rate limit | Honeycomb limits this endpoint to 10 req/min per team by default. The plugin mitigates this with caching and a token bucket (8/min by default, configurable via `rateLimitPerMinute`), but cold-start dashboards with many unique queries will still queue. |
+| Team query rate | Honeycomb runs queries at 10 per minute per team by default. Caching keeps most refreshes from starting new runs, but on a cold-start dashboard with many unique queries, the later runs wait in Honeycomb's query queue. |
 | Maximum time range | Honeycomb supports at most 7 days of historical data per query. |
 | Query execution timeout | Honeycomb cancels queries that take longer than 10 seconds. |
 | Compare time offset | The `compare_time_offset_seconds` field is sent in the query spec but Honeycomb's current Create Query Result API does not return comparison data in the result. When this API capability is added by Honeycomb, the plugin can be updated to surface comparison series. |
-| Relational field queries | Queries using relational columns (dot notation like `root.response.status_code`) are subject to a stricter 1 req/min limit. The plugin's token bucket does not distinguish these. Until this is handled, relational field queries may see more 429 errors. |
+| Relational field queries | Queries using relational columns (dot notation like `root.response.status_code`) are subject to a stricter 1 req/min limit. The plugin does not distinguish these, so relational field queries may see more 429 errors or longer waits. |
 
 ### Cache limitations
 
@@ -55,7 +55,7 @@ The cache is most effective when:
 Avoid:
 - Using unique per-panel template variable combinations that prevent cache sharing
 - Setting refresh intervals shorter than 60 seconds (cache TTL for short time ranges)
-- Having >10 unique queries on a cold-loading dashboard (token bucket queuing)
+- Having >10 unique queries on a cold-loading dashboard (later queries wait in Honeycomb's query queue)
 
 ### Group by cardinality
 
@@ -85,7 +85,7 @@ The following items are planned for future releases:
 - [ ] **Formula editor** — visual UI for formula expressions
 - [ ] **Having editor** — post-aggregation filter UI
 - [ ] **HEATMAP visualization** — proper frame structure for Grafana heatmap panels
-- [ ] **Relational field query support** — detect relational fields and apply a stricter per-token rate limit
+- [ ] **Relational field query support** — detect relational fields and surface their stricter 1 req/min limit
 - [ ] **Compare time offset visualization** — render comparison series when the Honeycomb API exposes comparison data in results
 - [ ] **Configurable cache TTLs** — expose L1/L2/L3 TTLs as datasource settings
 - [ ] **Redis cache backend** — optional distributed cache for multi-replica Grafana

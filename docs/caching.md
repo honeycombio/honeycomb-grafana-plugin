@@ -2,9 +2,9 @@
 
 ## The problem
 
-Honeycomb limits the **Create Query Result** endpoint to **10 requests per minute** per Honeycomb team by default.
+Honeycomb runs queries at **10 per minute** per Honeycomb team by default. Each call to **Create Query Result** that misses Honeycomb's result cache starts a run, and Honeycomb's query queue starts runs at the team's rate.
 
-A typical Grafana dashboard with 15 panels, each using a different query, auto-refreshing every 30 seconds would generate 15 requests per refresh — possibly exceeding and causing rate limiting.
+A typical Grafana dashboard with 15 panels, each using a different query, auto-refreshing every 30 seconds would start 15 runs per refresh. Past the team's rate, the later runs wait in the queue, so panels take longer and longer to fill in.
 
 ## The solution: three-level cache
 
@@ -12,9 +12,6 @@ The plugin maintains three in-process cache layers in the Go backend:
 
 ```
 Request → singleflight → L3? → L2? → L1? → Honeycomb API
-                                              ↓
-                                        Token bucket limiter
-                                        (8 tokens/60 s)
 ```
 
 ### L1: Query ID cache (default TTL: 30 minutes)
@@ -33,7 +30,7 @@ The Honeycomb Query API (POST /1/queries) creates an immutable query specificati
 **Key:** `SHA256(datasource_uid + dataset + normalized_query + snapped_from + snapped_to + disable_series + limit)`  
 **Value:** Honeycomb `query_result_id`
 
-Once a query has been submitted for execution, its result ID is cached so that repeated identical requests skip the rate-limited Create Query Result step.
+Once a query has been submitted for execution, its result ID is cached so that repeated identical requests poll the existing run instead of starting a new one.
 
 **Time snapping:** The time range boundaries are snapped to Honeycomb's own truncation intervals:
 - ≤6 h range: snap to nearest 60 s
@@ -42,7 +39,7 @@ Once a query has been submitted for execution, its result ID is cached so that r
 
 This means a panel refreshing every 30 seconds reuses the same L2 entry for the full 60-second bucket.
 
-**Cache miss:** One call to POST /1/query_results. This IS the rate-limited endpoint. A token must be acquired from the token bucket before this call.
+**Cache miss:** One call to POST /1/query_results. A run that misses Honeycomb's result cache counts against the team's query rate and may wait in Honeycomb's queue before it starts.
 
 ### L3: Completed result cache (default TTL: 2 hours)
 
@@ -73,7 +70,6 @@ Panel A: execKey = abc123
   → L1 miss (no query_id)
   → POST /1/queries → query_id = qid-1 (cached in L1)
   → L2 miss (no result_id)
-  → wait for token bucket...
   → POST /1/query_results → result_id = rid-1 (cached in L2)
   → poll GET /1/query_results/rid-1 until complete
   → cache result in L3 (2h TTL by default)
@@ -103,29 +99,22 @@ User moves time range to a new day (different snap bucket):
   → L3 miss
   → L1 hit (query_id still cached for 30min)
   → L2 miss (new time window)
-  → Token bucket → POST /1/query_results → ...
-  → 1 rate-limited call, then polling
+  → POST /1/query_results → ...
+  → 1 new run, then polling
 ```
 
 ---
 
-## Rate limiter details
+## Query rate and the query queue
 
-The token bucket defaults to **8 tokens per 60 seconds** (not 10) to leave headroom for:
-- Other clients sharing the same API key (CLI, CI jobs, etc.)
-- Clock skew between the plugin and Honeycomb's window boundaries
-- Burst of a few back-to-back panel loads
+The plugin does not pace query runs itself. Honeycomb's query queue starts each run at the team's query rate (10 per minute by default), and the plugin polls a queued run for up to 10 minutes. Several data sources, Grafana replicas, and other clients that use the same Honeycomb team share that rate.
 
-**Burst size:** 3 tokens. A dashboard opening cold can immediately submit 3 queries in parallel, then waits ~7.5 s per additional query.
+**On 429:** if Create Query Result returns 429, the panel shows an error. The next refresh tries again; the query_id is still cached in L1.
 
-**Configuring the rate:** set **Rate Limit (queries/minute)** under **Advanced** in the data source settings, or `rateLimitPerMinute` in provisioning `jsonData`. The limiter is per data source instance, so several data sources using the same Honeycomb team share that team's budget. Their combined rate should stay below it. Honeycomb's default limit is 10/min per team; if Honeycomb has raised yours, you can set this higher. If the rate is below 3, the burst is reduced to match.
-
-**On 429:** Honeycomb's Query Data API does not include a `Retry-After` header on 429 responses (per their docs). The plugin uses exponential backoff: 10 s → 20 s → 40 s (with 25% jitter), max 3 retries, then returns an error to Grafana.
-
-**On high-429 environments:** If you share an API key with many other clients and see persistent 429s, either:
-1. Create a dedicated Grafana API key (recommended), or lower `rateLimitPerMinute`
-2. Increase the panel time range to benefit from L3 caching (longer TTL coverage)
-3. Reduce dashboard refresh frequency
+To keep queue waits short:
+1. Increase the panel time range to benefit from L3 caching (longer TTL coverage)
+2. Reduce dashboard refresh frequency
+3. Ask Honeycomb support whether your team's query rate can be raised
 
 ---
 
