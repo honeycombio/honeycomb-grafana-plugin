@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.13] — 2026-11-12
+
 ### Removed
 - The plugin's own rate limiter for Create Query Result (8 per minute by default, with a 30 s wait before a query failed). Honeycomb's query queue now starts query runs at the team's query rate, so the limiter only made panels fail sooner. The **Rate Limit (queries/minute)** setting is gone from the data source settings. Existing data sources and provisioning files that set `rateLimitPerMinute` keep working; the plugin ignores the key.
 
@@ -106,7 +108,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Example provisioning configuration and example dashboard.
 - Apache 2.0 license.
 
-[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.12...HEAD
+[Unreleased]: https://github.com/honeycombio/honeycomb-grafana-plugin/compare/v0.1.13...HEAD
+[0.1.13]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.13
 [0.1.12]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.12
 [0.1.11]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.11
 [0.1.10]: https://github.com/honeycombio/honeycomb-grafana-plugin/releases/tag/v0.1.10
